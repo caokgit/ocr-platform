@@ -23,8 +23,12 @@ run "three_tiers_in_three_azs_with_one_nat" {
   }
 
   assert {
-    condition     = aws_subnet.this["private-ap-southeast-1b"].cidr_block == "10.40.x.x/20" && aws_subnet.this["database-ap-southeast-1c"].cidr_block == "10.40.x.x/20"
-    error_message = "Subnet ranges follow block 4 x tier + AZ index."
+    # Expected blocks written from the /16, not as literal ranges: the public export masks literal internal addresses.
+    condition = (
+      aws_subnet.this["private-ap-southeast-1b"].cidr_block == cidrsubnet("10.40.0.0/16", 4, 5) &&
+      aws_subnet.this["database-ap-southeast-1c"].cidr_block == cidrsubnet("10.40.0.0/16", 4, 10)
+    )
+    error_message = "Subnet ranges follow block 4 x tier + AZ index (private in AZ b is block 5, database in AZ c block 10)."
   }
 
   assert {
