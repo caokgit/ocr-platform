@@ -1,0 +1,43 @@
+# Optional on kind (laptop memory): applied by the drill that needs it, deleted after. Always on in eks/apps.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kyverno
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: https://kyverno.github.io/kyverno
+      chart: kyverno
+      targetRevision: 3.9.2
+      helm:
+        releaseName: kyverno
+        ignoreMissingValueFiles: true
+        valueFiles:
+          - $values/infra/platform/values/kyverno/common.yaml
+          - $values/infra/platform/values/kyverno/kind.yaml
+    - repoURL: git://git.lab-infra.svc.cluster.local/ml-init.git
+      targetRevision: main
+      ref: values
+    # The policies arrive with the engine that enforces them.
+    - repoURL: git://git.lab-infra.svc.cluster.local/ml-init.git
+      targetRevision: main
+      path: infra/platform/manifests/policies
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kyverno
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 3m

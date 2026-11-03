@@ -1,0 +1,27 @@
+# The data path's own objects, plain manifests in infra/argocd/lab-data/: namespaces, quota and limit ranges, the
+# Postgres Cluster, Kafka and its topics (docs/specs/data-path.md#layout). The operators' types may not exist
+# yet on a first sync, so dry runs skip them and syncs retry.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: lab-data
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: git@github.com:caokgit/ocr-platform.git
+    targetRevision: main
+    path: infra/argocd/lab-data
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: lab-data
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - SkipDryRunOnMissingResource=true
+      - ServerSideApply=true
+    retry:
+      limit: 10
+      backoff: {duration: 15s, factor: 2, maxDuration: 3m}

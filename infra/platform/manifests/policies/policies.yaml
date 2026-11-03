@@ -1,0 +1,76 @@
+# Kyverno ValidatingPolicies (CEL). Deny in namespaces labelled lab/policy: enforce; audit (reported, not blocked)
+# elsewhere. Pods made by Deployments and other controllers are checked through their pod template (autogen).
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: disallow-latest-tag
+  annotations:
+    policies.kyverno.io/description: An image tag must name a version, so a rollback brings back the same code.
+spec:
+  validationActions: [Deny]
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [pods]
+    namespaceSelector:
+      matchLabels:
+        lab/policy: enforce
+  validations:
+    - expression: >-
+        object.spec.containers.all(c,
+          c.image.split('/')[size(c.image.split('/')) - 1].contains(':') && !c.image.endsWith(':latest'))
+      message: "Use a version tag, not ':latest' or no tag."
+---
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: require-requests-limits
+  annotations:
+    policies.kyverno.io/description: Requests let the scheduler and Karpenter size nodes; a memory limit stops one pod from starving the node.
+spec:
+  validationActions: [Deny]
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [pods]
+    namespaceSelector:
+      matchLabels:
+        lab/policy: enforce
+  validations:
+    - expression: >-
+        object.spec.containers.all(c,
+          has(c.resources) && has(c.resources.requests) && has(c.resources.limits) &&
+          'cpu' in c.resources.requests && 'memory' in c.resources.requests && 'memory' in c.resources.limits)
+      message: "Set CPU and memory requests and a memory limit."
+---
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: require-run-as-non-root
+spec:
+  validationActions: [Audit]
+  evaluation:
+    background:
+      enabled: true
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [pods]
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values: [kube-system, kyverno, monitoring, local-path-storage]
+  validations:
+    - expression: >-
+        (has(object.spec.securityContext) && has(object.spec.securityContext.runAsNonRoot) &&
+          object.spec.securityContext.runAsNonRoot) ||
+        object.spec.containers.all(c, has(c.securityContext) && has(c.securityContext.runAsNonRoot) &&
+          c.securityContext.runAsNonRoot)
+      message: "Run as a non-root user (securityContext.runAsNonRoot: true)."

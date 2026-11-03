@@ -1,0 +1,18 @@
+# On EKS the chunks go to the lake bucket's logs/ prefix through Pod Identity, not a disk.
+loki:
+  schemaConfig:
+    configs:
+      - from: "2026-01-01"
+        store: tsdb
+        object_store: s3
+        schema: v13
+        index:
+          prefix: index_
+          period: 24h
+  storage:
+    type: s3
+    bucketNames:
+      chunks: ocr-platform-dev-logs
+      ruler: ocr-platform-dev-logs
+    s3:
+      region: ap-southeast-1

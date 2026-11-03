@@ -1,0 +1,29 @@
+# Argo CD on EKS, installed once on the system node group; the same chart as on kind, HA-lite.
+global:
+  domain: argocd.ocr-platform.example
+  nodeSelector:
+    node-role: system
+
+configs:
+  params:
+    server.insecure: true
+  repositories:
+    envoy-gateway:
+      name: envoy-gateway
+      type: helm
+      url: docker.io/envoyproxy
+      enableOCI: "true"
+    karpenter:
+      name: karpenter
+      type: helm
+      url: public.ecr.aws/karpenter
+      enableOCI: "true"
+
+dex:
+  enabled: false
+controller:
+  replicas: 1
+repoServer:
+  replicas: 2
+server:
+  replicas: 2

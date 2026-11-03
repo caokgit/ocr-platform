@@ -1,0 +1,43 @@
+# The application: up to ten inserts a second through app-db, one connection each, logging every success and
+# failure with its time. The longest gap between two successes is the downtime a user would see.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: writer
+  namespace: db
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: writer}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: writer}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 26
+      containers:
+        - name: writer
+          image: ghcr.io/cloudnative-pg/postgresql:17.10-minimal-trixie
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              while true; do
+                if id=$(psql -qtAX -v ON_ERROR_STOP=1 -c "INSERT INTO orders(amount) VALUES (round((random()*100)::numeric, 2)) RETURNING id" 2>/tmp/err); then
+                  echo "$(date -u +%H:%M:%S.%3N) ok $id"
+                else
+                  echo "$(date -u +%H:%M:%S.%3N) FAIL $(head -c 120 /tmp/err | tr '\n' ' ')"
+                fi
+                sleep 0.1
+              done
+          env:
+            - {name: PGHOST, value: app-db}
+            - {name: PGDATABASE, value: app}
+            - {name: PGCONNECT_TIMEOUT, value: "2"}
+            - name: PGUSER
+              valueFrom: {secretKeyRef: {name: pg16-app, key: username}}
+            - name: PGPASSWORD
+              valueFrom: {secretKeyRef: {name: pg16-app, key: password}}
+          resources:
+            requests: {cpu: 20m, memory: 32Mi}
+            limits: {memory: 64Mi}

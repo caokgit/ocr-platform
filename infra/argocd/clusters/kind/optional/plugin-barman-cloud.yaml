@@ -1,0 +1,38 @@
+# Optional on kind (laptop memory): applied by the database drill, deleted after. On EKS the database is RDS.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: plugin-barman-cloud
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: https://cloudnative-pg.github.io/charts
+      chart: plugin-barman-cloud
+      targetRevision: 0.8.1
+      helm:
+        releaseName: plugin-barman-cloud
+        ignoreMissingValueFiles: true
+        valueFiles:
+          - $values/infra/platform/values/plugin-barman-cloud/common.yaml
+    - repoURL: git://git.lab-infra.svc.cluster.local/ml-init.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cnpg-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 3m

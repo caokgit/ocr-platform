@@ -1,0 +1,53 @@
+# Argo CD's read-only deploy key (docs/specs/gpu-box-platform.md#decisions, row 15): the pair is
+# made on the box (root only, outside any repo), the private half goes only into the cluster's repo Secret,
+# and the public half is printed for the owner to add on GitHub as a read-only deploy key. Needs k3s running.
+- name: Argo CD's deploy key
+  hosts: box
+  gather_facts: false
+  vars_files: [vars.yml]
+  vars:
+    key_dir: /etc/ml-lab
+    key_file: /etc/ml-lab/argocd_deploy_ed25519
+    repo_url: git@github.com:caokgit/ocr-platform.git
+  tasks:
+    - name: A root-only folder for the key
+      ansible.builtin.file:
+        path: "{{ key_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+      become: true
+
+    - name: The key pair, made once
+      ansible.builtin.command:
+        cmd: ssh-keygen -t ed25519 -N '' -C 'ml-lab argocd read-only' -f {{ key_file }}
+        creates: "{{ key_file }}"
+      become: true
+
+    - name: Argo CD's repository Secret, from the private half (never written as a file in the repo)
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          k3s kubectl -n argocd create secret generic repo-ocr-platform \
+            --from-literal=type=git --from-literal=url={{ repo_url }} \
+            --from-file=sshPrivateKey={{ key_file }} --dry-run=client -o json \
+          | python3 -c 'import json,sys; s=json.load(sys.stdin); s["metadata"]["labels"]={"argocd.argoproj.io/secret-type":"repository"}; print(json.dumps(s))' \
+          | k3s kubectl apply -f -
+        executable: /bin/bash
+      become: true
+      no_log: true
+      register: secret
+      changed_when: "'unchanged' not in secret.stdout"
+
+    - name: Read the public half
+      ansible.builtin.command: cat {{ key_file }}.pub
+      become: true
+      register: pub
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Add this on GitHub, repo Settings > Deploy keys, "Allow write access" left off
+      ansible.builtin.debug:
+        msg: "{{ pub.stdout }}"
+      when: not ansible_check_mode

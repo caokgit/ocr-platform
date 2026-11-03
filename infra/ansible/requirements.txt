@@ -1,0 +1,2 @@
+# Ansible for the GPU box, installed into the gitignored .venv (docs/runbooks/laptop-setup.md, step 6).
+ansible-core==2.21.5

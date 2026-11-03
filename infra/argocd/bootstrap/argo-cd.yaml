@@ -1,0 +1,28 @@
+# Argo CD, installed by k3s's Helm controller: infra/ansible/bootstrap.yml copies this file into k3s's
+# auto-deploy folder (docs/specs/gpu-box-platform.md#argo-cd). Memory limits leave the box to the AI team.
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: argo-cd
+  namespace: kube-system
+spec:
+  repo: https://argoproj.github.io/argo-helm
+  chart: argo-cd
+  version: 10.11.1
+  targetNamespace: argocd
+  createNamespace: true
+  valuesContent: |-
+    dex:
+      enabled: false
+    notifications:
+      enabled: false
+    controller:
+      resources: {requests: {cpu: 100m, memory: 256Mi}, limits: {memory: 1Gi}}
+    server:
+      resources: {requests: {cpu: 50m, memory: 128Mi}, limits: {memory: 256Mi}}
+    repoServer:
+      resources: {requests: {cpu: 50m, memory: 128Mi}, limits: {memory: 512Mi}}
+    redis:
+      resources: {requests: {cpu: 50m, memory: 64Mi}, limits: {memory: 128Mi}}
+    applicationSet:
+      resources: {requests: {cpu: 25m, memory: 64Mi}, limits: {memory: 128Mi}}

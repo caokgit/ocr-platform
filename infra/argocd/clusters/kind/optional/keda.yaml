@@ -1,0 +1,39 @@
+# Optional on kind (laptop memory): applied by the drill that needs it, deleted after. Always on in eks/apps.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: keda
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: https://kedacore.github.io/charts
+      chart: keda
+      targetRevision: 2.21.0
+      helm:
+        releaseName: keda
+        ignoreMissingValueFiles: true
+        valueFiles:
+          - $values/infra/platform/values/keda/common.yaml
+          - $values/infra/platform/values/keda/kind.yaml
+    - repoURL: git://git.lab-infra.svc.cluster.local/ml-init.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: keda
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 3m

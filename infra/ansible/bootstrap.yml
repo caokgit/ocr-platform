@@ -1,0 +1,187 @@
+# Bootstrap the GPU box: k3s installed and stopped, next to the AI team's Docker without editing it
+# (docs/specs/gpu-box-platform.md#ansible-playbooks). Always shown first with --check --diff.
+- name: Bootstrap the GPU box for the lab
+  hosts: box
+  gather_facts: false
+  vars_files: [vars.yml]
+  tasks:
+    - name: Is k3s already running? (its own ports then count as free)
+      ansible.builtin.command: systemctl is-active k3s
+      register: k3s_state
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Pre-checks
+      ansible.builtin.import_tasks: tasks/pre-checks.yml
+      vars:
+        k3s_running: "{{ k3s_state.stdout == 'active' }}"
+
+    - name: Read the account's name
+      ansible.builtin.command: id -un
+      register: box_user
+      changed_when: false
+      check_mode: false
+
+    - name: The account's passwordless sudo rule, adopted as it is (D13)
+      ansible.builtin.copy:
+        dest: /etc/sudoers.d/{{ box_user.stdout }}
+        content: "{{ box_user.stdout }} ALL=(ALL) NOPASSWD:ALL\n"
+        owner: root
+        group: root
+        mode: "0440"
+        validate: visudo -cf %s
+      become: true
+
+    - name: k3s's folders on /mnt/data, and the kubelet's mount point
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - "{{ k3s_data_dir }}"
+        - "{{ kubelet_data_dir }}"
+        - /var/lib/kubelet
+        - /etc/rancher/k3s
+        - /etc/systemd/system/k3s.service.d
+      become: true
+
+    - name: The bind mount of the kubelet's folder, and k3s's need for it
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        owner: root
+        group: root
+        mode: "0644"
+      loop:
+        - {src: files/var-lib-kubelet.mount, dest: /etc/systemd/system/var-lib-kubelet.mount}
+        - {src: files/k3s-kubelet-mount.conf, dest: /etc/systemd/system/k3s.service.d/kubelet-mount.conf}
+      become: true
+      notify: Reload systemd
+
+    - name: k3s's settings
+      ansible.builtin.copy:
+        src: files/k3s-config.yaml
+        dest: /etc/rancher/k3s/config.yaml
+        owner: root
+        group: root
+        mode: "0600"
+      become: true
+
+    - name: Read ufw's rules
+      ansible.builtin.command: ufw status numbered
+      become: true
+      register: ufw_rules
+      changed_when: false
+      check_mode: false
+
+    - name: Take the lab's allows out where they sit below the AI team's rules, so they can go first (one time)
+      community.general.ufw:
+        rule: allow
+        from_ip: "{{ item }}"
+        delete: true
+      loop: "{{ k3s_ranges }}"
+      become: true
+      when: ufw_rules.stdout is not search('\\[ 1\\] Anywhere +ALLOW IN +10\\.42\\.0\\.0/16')
+
+    - name: First in ufw (IPv4), the lab's pods and Services may reach the box
+      community.general.ufw:
+        rule: allow
+        from_ip: "{{ item }}"
+        insert: "{{ index }}"
+        insert_relative_to: first-ipv4
+        comment: ml-lab k3s
+      loop: "{{ k3s_ranges }}"
+      loop_control:
+        index_var: index
+      become: true
+
+    - name: Then k3s's ports are closed to everyone else (IPv4), ahead of the existing rules
+      community.general.ufw:
+        rule: deny
+        from_ip: 0.0.0.0/0
+        to_port: "{{ item.port }}"
+        proto: "{{ item.proto }}"
+        insert: "{{ k3s_ranges | length + index }}"
+        insert_relative_to: first-ipv4
+        comment: ml-lab k3s
+      loop: "{{ k3s_ports }}"
+      loop_control:
+        index_var: index
+      become: true
+
+    - name: And to everyone over IPv6
+      community.general.ufw:
+        rule: deny
+        from_ip: "::/0"
+        to_port: "{{ item.port }}"
+        proto: "{{ item.proto }}"
+        insert: "{{ index }}"
+        insert_relative_to: first-ipv6
+        comment: ml-lab k3s
+      loop: "{{ k3s_ports }}"
+      loop_control:
+        index_var: index
+      become: true
+
+    - name: Read the installed k3s version
+      ansible.builtin.command: /usr/local/bin/k3s --version
+      register: k3s_installed
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Install k3s at the pinned version, not enabled at boot, not started
+      when: k3s_version not in k3s_installed.stdout | default('')
+      become: true
+      block:
+        - name: Download the installer, checked against its pinned sha256
+          ansible.builtin.get_url:
+            url: "{{ k3s_installer_url }}"
+            dest: /tmp/k3s-install.sh
+            checksum: "sha256:{{ k3s_installer_sha256 }}"
+            mode: "0700"
+
+        - name: Run the installer
+          ansible.builtin.command: /tmp/k3s-install.sh
+          environment:
+            INSTALL_K3S_VERSION: "{{ k3s_version }}"
+            INSTALL_K3S_SKIP_ENABLE: "true"
+            INSTALL_K3S_SKIP_START: "true"
+            INSTALL_K3S_SYMLINK: skip   # no kubectl, crictl or ctr added to the AI team's PATH
+          register: k3s_install
+          changed_when: true
+
+        - name: Remove the installer
+          ansible.builtin.file:
+            path: /tmp/k3s-install.sh
+            state: absent
+
+    - name: k3s's auto-deploy folder
+      ansible.builtin.file:
+        path: "{{ k3s_manifests_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+      become: true
+
+    - name: Argo CD's HelmChart and the root Application, applied by k3s when it starts
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ k3s_manifests_dir }}/{{ item | basename }}"
+        owner: root
+        group: root
+        mode: "0600"
+      loop:
+        - ../argocd/bootstrap/argo-cd.yaml
+        - ../argocd/bootstrap/root-app.yaml
+      become: true
+
+  handlers:
+    - name: Reload systemd
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+      become: true

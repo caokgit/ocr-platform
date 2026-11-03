@@ -1,0 +1,17 @@
+# On EKS the Gateway's Service becomes a Network Load Balancer (EKS's cloud controller reads the annotation),
+# internet-facing, across the public subnets tagged kubernetes.io/role/elb.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: nlb
+  namespace: envoy-gateway-system
+spec:
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyService:
+        type: LoadBalancer
+        externalTrafficPolicy: Local
+        annotations:
+          service.beta.kubernetes.io/aws-load-balancer-type: nlb
+          service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing

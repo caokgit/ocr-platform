@@ -1,0 +1,13 @@
+# Karpenter runs on the on-demand system node group, never on the nodes it manages.
+settings:
+  clusterName: ocr-platform-dev
+  interruptionQueue: ocr-platform-dev-karpenter-interruption
+serviceAccount:
+  name: karpenter
+nodeSelector:
+  node-role: system
+replicas: 2
+controller:
+  resources:
+    requests: {cpu: 250m, memory: 512Mi}
+    limits: {memory: 512Mi}

@@ -1,0 +1,20 @@
+# Isolated per-tool login config (gh, kube, az, hf, ssh) - hold tokens
+.scratch*/
+
+# Local toolchain binaries (gh, helm, ...) downloaded without sudo
+.toolchain/
+
+# Python
+__pycache__/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Data, models, run artifacts: in the lab's object store (SeaweedFS) and, from phase 2b, MLflow; never in git
+data/
+backups/
+models/
+mlruns/
+*.pt
+*.onnx
+*.engine

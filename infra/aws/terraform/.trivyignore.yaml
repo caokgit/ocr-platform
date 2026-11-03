@@ -1,0 +1,2 @@
+# Accepted Trivy findings, each with its reason (spec C2). None so far: every finding was fixed in code.
+misconfigurations: []

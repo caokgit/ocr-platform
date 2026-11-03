@@ -1,0 +1,6 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+# Modules are not root modules: their lock files are not kept; the envs' are.
+modules/**/.terraform.lock.hcl

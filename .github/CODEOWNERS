@@ -1,0 +1,5 @@
+# Who must review a change, by path. With one maintainer every path has the same owner; a team would split them,
+# for example infra/aws/ to the platform team and pipelines/ to the data team.
+*            @caokgit
+/infra/      @caokgit
+/.github/    @caokgit

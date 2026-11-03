@@ -1,0 +1,21 @@
+# The root Application (app of apps): Argo CD manages everything in infra/argocd/apps/ from this repo.
+# Copied into k3s's auto-deploy folder with argo-cd.yaml; k3s retries it every 15 s until Argo CD's
+# Application type exists (docs/specs/gpu-box-platform.md#argo-cd).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: git@github.com:caokgit/ocr-platform.git
+    targetRevision: main
+    path: infra/argocd/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

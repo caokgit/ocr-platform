@@ -1,0 +1,32 @@
+# A synthetic client: five requests a second to podinfo, logging every request that does not return 200, so the
+# error rate has traffic behind it and Loki has the client's side of a failure.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: synthetic-traffic
+  namespace: apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: synthetic-traffic}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: synthetic-traffic}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      containers:
+        - name: client
+          image: curlimages/curl:8.17.0
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              while true; do
+                code=$(curl -s -o /tmp/body -w '%{http_code}' -m 2 http://podinfo.apps.svc:9898/)
+                [ "$code" = 200 ] || echo "level=error status=$code body=$(head -c 100 /tmp/body | tr '\n' ' ')"
+                sleep 0.2
+              done
+          resources:
+            requests: {cpu: 10m, memory: 8Mi}
+            limits: {memory: 32Mi}

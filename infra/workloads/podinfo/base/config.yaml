@@ -1,0 +1,16 @@
+# The message comes from AWS Secrets Manager; External Secrets keeps the Kubernetes Secret in step.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: podinfo-config
+  namespace: apps
+spec:
+  refreshInterval: 15s
+  secretStoreRef: {kind: ClusterSecretStore, name: aws-secrets-manager}
+  target:
+    name: podinfo-config
+  data:
+    - secretKey: message
+      remoteRef:
+        key: ocr-platform/localstack/podinfo
+        property: message

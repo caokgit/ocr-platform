@@ -1,0 +1,98 @@
+# Start the lab: pre-checks, k3s started (its kubelet folder mounted first), the node Ready, and the
+# kubeconfig on the laptop pointing at the SSH tunnel (docs/specs/gpu-box-platform.md#ansible-playbooks).
+- name: Start the lab on the GPU box
+  hosts: box
+  gather_facts: false
+  vars_files: [vars.yml]
+  tasks:
+    - name: Is k3s already running?
+      ansible.builtin.command: systemctl is-active k3s
+      register: k3s_state
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Pre-checks
+      ansible.builtin.import_tasks: tasks/pre-checks.yml
+      vars:
+        k3s_running: "{{ k3s_state.stdout == 'active' }}"
+
+    - name: Start k3s (systemd mounts /var/lib/kubelet first)
+      ansible.builtin.systemd_service:
+        name: k3s
+        state: started
+      become: true
+
+    - name: Wait for the node to be Ready
+      ansible.builtin.command: /usr/local/bin/k3s kubectl get nodes --no-headers
+      register: nodes
+      until: nodes.rc == 0 and ' Ready ' in nodes.stdout
+      retries: 30
+      delay: 10
+      changed_when: false
+      become: true
+      when: not ansible_check_mode
+
+    - name: The kubelet's folder is the bind mount from /mnt/data
+      ansible.builtin.command: findmnt -n -o SOURCE /var/lib/kubelet
+      register: kubelet_mount
+      changed_when: false
+      failed_when: "'k3s-kubelet' not in kubelet_mount.stdout"
+      when: not ansible_check_mode
+
+    - name: Read the kubeconfig
+      ansible.builtin.slurp:
+        src: /etc/rancher/k3s/k3s.yaml
+      register: kubeconfig
+      become: true
+      no_log: true
+      when: not ansible_check_mode
+
+    - name: The laptop's kubeconfig folder
+      ansible.builtin.file:
+        path: "{{ playbook_dir }}/../../.scratch_kube"
+        state: directory
+        mode: "0700"
+      delegate_to: localhost
+
+    - name: Write it on the laptop, pointing at the tunnel's end (127.0.0.1:16443)
+      ansible.builtin.copy:
+        content: "{{ kubeconfig.content | b64decode | replace('https://127.0.0.1:6443', 'https://127.0.0.1:16443') }}"
+        dest: "{{ playbook_dir }}/../../.scratch_kube/config"
+        mode: "0600"
+      delegate_to: localhost
+      no_log: true
+      diff: false
+      when: not ansible_check_mode
+
+    - name: Wait for the data path's long-running pods to be Ready (none of a Job or a Spark run); the kubeconfig is already on the laptop, so a missing Secret can be fixed meanwhile
+      ansible.builtin.shell:
+        cmd: |
+          k() { /usr/local/bin/k3s kubectl "$@"; }
+          k get namespace {{ data_namespace }} >/dev/null 2>&1 || { echo "no {{ data_namespace }} namespace"; exit 0; }
+          end=$(( $(date +%s) + {{ data_ready_timeout_s }} ))
+          while :; do
+            pods=$(k get pods -n {{ data_namespace }} -l '!job-name,!spark-role' --no-headers 2>/dev/null)
+            notready=$(echo "$pods" | awk 'NF && ($3 != "Running" || split($2, r, "/") && r[1] != r[2])' | wc -l)
+            [ -n "$pods" ] && [ "$notready" -eq 0 ] && break
+            [ "$(date +%s)" -ge "$end" ] && { echo "$pods"; echo "not ready after {{ data_ready_timeout_s }} s"; exit 1; }
+            sleep 10
+          done
+          echo "$pods"
+      register: data_pods
+      changed_when: false
+      become: true
+      when: not ansible_check_mode
+
+    - name: The data path's pods
+      ansible.builtin.debug:
+        msg: "{{ data_pods.stdout_lines | default(['check mode: not read']) }}"
+
+    - name: Node
+      ansible.builtin.debug:
+        msg: "{{ nodes.stdout | default('check mode: not started') }}"
+
+- name: Box check after lab-up
+  ansible.builtin.import_playbook: check.yml
+  vars:
+    label: lab-up

@@ -1,0 +1,36 @@
+# Fetch the lake jobs' jars onto spark-data once (pipelines/lake/jobs/fetch_jars.py), in the Spark image so it can
+# see which jars the image already holds. Created by `launch.py jars`, which fills in NAME and the commit stamp; Argo CD does not own it.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: NAME
+  namespace: lab-data
+  labels:
+    lab/git-commit: "GIT_COMMIT"  # the commit stamp, filled in by the launcher (docs/specs/data-path.md#layout)
+    lab/git-dirty: "GIT_DIRTY"
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        lab/git-commit: "GIT_COMMIT"
+        lab/git-dirty: "GIT_DIRTY"
+    spec:
+      restartPolicy: Never
+      securityContext: {fsGroup: 185}        # the image's user writes the volume
+      containers:
+        - name: fetch
+          image: apache/spark:4.1.4-scala2.13-java21-python3-ubuntu
+          command: ["python3", "-u", "/opt/lab/fetch_jars.py"]
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {memory: 512Mi}
+          volumeMounts:
+            - {name: code, mountPath: /opt/lab, readOnly: true}
+            - {name: data, mountPath: /data}
+      volumes:
+        - name: code
+          configMap: {name: lake-code}
+        - name: data
+          persistentVolumeClaim: {claimName: spark-data}

@@ -1,0 +1,453 @@
+# One topic per copied table, lab.<schema>.<table> (28), kept with no time limit, and the two heartbeat topics,
+# kept one day (docs/specs/data-path.md#decisions, row 12). Topic names hold underscores, which object names
+# cannot, hence spec.topicName. Written from the snapshot's table list (pipelines/snapshot/snapshot.py).
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.dev-svc.document
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.dev_svc.document
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.dev-svc.document-run
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.dev_svc.document_run
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.dev-svc.document-page
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.dev_svc.document_page
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.dev-svc.document-unit
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.dev_svc.document_unit
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.dev-svc.match-candidate
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.dev_svc.match_candidate
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.dev-svc.element-record
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.dev_svc.element_record
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.dev-svc.run-element
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.dev_svc.run_element
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.dev-svc.run-stage
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.dev_svc.run_stage
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.dev-odoo.ocr-element
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.dev_odoo.ocr_element
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.dev-odoo.ocr-document-template
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.dev_odoo.ocr_document_template
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.dev-odoo.ocr-element-prompt
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.dev_odoo.ocr_element_prompt
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.dev-odoo.product-document
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.dev_odoo.product_document
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.dev-odoo.ir-attachment
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.dev_odoo.ir_attachment
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.dev-odoo.request-ticket-result
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.dev_odoo.request_ticket_result
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.stg-svc.document
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.stg_svc.document
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.stg-svc.document-run
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.stg_svc.document_run
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.stg-svc.document-page
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.stg_svc.document_page
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.stg-svc.document-unit
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.stg_svc.document_unit
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.stg-svc.match-candidate
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.stg_svc.match_candidate
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.stg-svc.element-record
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.stg_svc.element_record
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.stg-svc.run-element
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.stg_svc.run_element
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.stg-svc.run-stage
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.stg_svc.run_stage
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.stg-odoo.ocr-element
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.stg_odoo.ocr_element
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.stg-odoo.ocr-document-template
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.stg_odoo.ocr_document_template
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.stg-odoo.ocr-element-prompt
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.stg_odoo.ocr_element_prompt
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.stg-odoo.product-document
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.stg_odoo.product_document
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.stg-odoo.ir-attachment
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.stg_odoo.ir_attachment
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.stg-odoo.request-ticket-result
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.stg_odoo.request_ticket_result
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: -1
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: lab.lab-meta.heartbeat
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: lab.lab_meta.heartbeat
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: 86400000
+    max.message.bytes: 2097152
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: debezium-heartbeat.lab
+  namespace: lab-data
+  labels:
+    strimzi.io/cluster: lab-kafka
+spec:
+  topicName: __debezium-heartbeat.lab
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: 86400000
+    max.message.bytes: 2097152

@@ -1,0 +1,17 @@
+# One replica per controller: enough to admit and report in a lab, without the HA memory cost.
+admissionController:
+  replicas: 1
+  container:
+    resources:
+      requests: {cpu: 50m, memory: 128Mi}
+      limits: {memory: 384Mi}
+backgroundController:
+  resources:
+    requests: {cpu: 20m, memory: 64Mi}
+    limits: {memory: 192Mi}
+cleanupController:
+  enabled: false
+reportsController:
+  resources:
+    requests: {cpu: 20m, memory: 64Mi}
+    limits: {memory: 192Mi}

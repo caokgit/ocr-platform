@@ -1,0 +1,10 @@
+# The kubelet's folder at its fixed path, its bytes on /mnt/data (docs/specs/gpu-box-platform.md, row 1).
+# No [Install] section: never started at boot; k3s.service requires it, so it mounts when k3s starts.
+[Unit]
+Description=The lab's kubelet folder, bind-mounted from /mnt/data
+
+[Mount]
+What=/mnt/data/k3s-kubelet
+Where=/var/lib/kubelet
+Type=none
+Options=bind

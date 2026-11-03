@@ -1,0 +1,12 @@
+# Workloads live in apps, where Kyverno enforces its rules (label lab/policy: enforce).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps
+  labels:
+    lab/policy: enforce
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gateway

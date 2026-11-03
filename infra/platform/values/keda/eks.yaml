@@ -1,0 +1,4 @@
+# The operator reads SQS depth with its own Pod Identity role.
+serviceAccount:
+  operator:
+    name: keda-operator

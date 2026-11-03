@@ -1,0 +1,21 @@
+# The kind cluster's root: everything under apps/ is synced from the local Git server (infra/kind/git-sync.sh).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root-kind
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: git://git.lab-infra.svc.cluster.local/ml-init.git
+    targetRevision: main
+    path: infra/argocd/clusters/kind/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

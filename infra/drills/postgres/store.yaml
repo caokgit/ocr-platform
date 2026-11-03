@@ -1,0 +1,32 @@
+# Barman Cloud's object store: the backup bucket in LocalStack S3 (Terraform envs/localstack, module pg_backups).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: db
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: s3-keys
+  namespace: db
+stringData:
+  ACCESS_KEY_ID: test
+  ACCESS_SECRET_KEY: test
+---
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: lab-store
+  namespace: db
+spec:
+  configuration:
+    destinationPath: s3://ocr-platform-ls-pg-backups/
+    endpointURL: http://localstack.lab-infra.svc.cluster.local:4566
+    s3Credentials:
+      accessKeyId: {name: s3-keys, key: ACCESS_KEY_ID}
+      secretAccessKey: {name: s3-keys, key: ACCESS_SECRET_KEY}
+    wal:
+      compression: gzip
+    data:
+      compression: gzip
+  retentionPolicy: 7d

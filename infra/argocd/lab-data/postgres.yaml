@@ -1,0 +1,95 @@
+# The lab's Postgres: one instance, PG 17 like the client's, databases archive, live and catalog
+# (docs/specs/data-path.md#lab-postgres, rows 7 to 9). live is the bootstrap database, owned by replayer, whose
+# password CloudNativePG generates (Secret lab-pg-app); the other roles' passwords are the Secrets made by
+# infra/scripts/lab-credentials.py.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: lab-pg
+  namespace: lab-data
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.11-202610190957-standard-trixie
+  storage:
+    storageClass: local-path
+    size: 10Gi
+  resources:
+    requests: {cpu: 100m, memory: 512Mi}
+    limits: {memory: 1Gi}
+  bootstrap:
+    initdb:
+      database: live
+      owner: replayer
+  postgresql:
+    parameters:
+      max_wal_size: 1GB
+      max_slot_wal_keep_size: 4GB          # a stopped Debezium can hold at most this (B7)
+      pg_stat_statements.max: "5000"       # loads pg_stat_statements (B6)
+      pg_stat_statements.track: top
+  managed:
+    roles:                                 # the operator's defaults written out: it adds them, and the list
+      - name: archive                      # is compared whole, so leaving them out shows OutOfSync
+        ensure: present
+        login: true
+        inherit: true
+        connectionLimit: -1
+        passwordSecret: {name: lab-pg-archive}
+      - name: debezium
+        ensure: present
+        login: true
+        replication: true
+        inherit: true
+        connectionLimit: -1
+        passwordSecret: {name: lab-pg-debezium}
+      - name: spark
+        ensure: present
+        login: true
+        inherit: true
+        connectionLimit: -1
+        passwordSecret: {name: lab-pg-spark}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: live
+  namespace: lab-data
+spec:
+  cluster: {name: lab-pg}
+  name: live
+  owner: replayer
+  extensions:
+    - name: pg_stat_statements
+      ensure: present
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: archive
+  namespace: lab-data
+spec:
+  cluster: {name: lab-pg}
+  name: archive
+  owner: archive
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: catalog
+  namespace: lab-data
+spec:
+  cluster: {name: lab-pg}
+  name: catalog
+  owner: spark
+---
+# Debezium reads this publication; FOR ALL TABLES in live is exactly the mirrored tables and lab_meta.
+apiVersion: postgresql.cnpg.io/v1
+kind: Publication
+metadata:
+  name: lab-debezium
+  namespace: lab-data
+spec:
+  cluster: {name: lab-pg}
+  dbname: live
+  name: lab_debezium
+  target:
+    allTables: true

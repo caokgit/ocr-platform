@@ -1,0 +1,5 @@
+---
+# Collections for the GPU box playbooks, installed into .scratch_ansible/ (docs/runbooks/laptop-setup.md, step 6).
+collections:
+  - name: community.general
+    version: 13.5.0

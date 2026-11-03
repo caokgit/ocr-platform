@@ -1,0 +1,30 @@
+# Scale on CPU: add pods above 60% of the request, one to six.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: podinfo
+  namespace: apps
+spec:
+  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: podinfo}
+  minReplicas: 1
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: {type: Utilization, averageUtilization: 60}
+  behavior:
+    # Down after a minute of low load instead of the default five, so the drill shows the way back.
+    scaleDown:
+      stabilizationWindowSeconds: 60
+---
+# During a node drain (a spot reclaim, an upgrade) at most one replica is down at a time.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: podinfo
+  namespace: apps
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: podinfo}

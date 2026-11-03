@@ -1,0 +1,13 @@
+# The jars the lake jobs add to Spark 4.1.4, fetched once onto the volume spark-data by `launch.py jars` and
+# passed to every job as local files (spark-submit runs in the operator's pod, which must not download them).
+# group:artifact:version; a jar the Spark image already holds (same artifact) is skipped.
+org.apache.iceberg:iceberg-spark-runtime-4.1_2.13:1.12.0
+org.apache.iceberg:iceberg-aws-bundle:1.12.0
+org.postgresql:postgresql:42.7.14
+org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.4
+org.apache.spark:spark-token-provider-kafka-0-10_2.13:4.1.4
+org.apache.kafka:kafka-clients:3.9.1
+org.apache.commons:commons-pool2:2.12.1
+org.scala-lang.modules:scala-parallel-collections_2.13:1.2.0
+com.google.code.findbugs:jsr305:3.0.0
+org.apache.spark:spark-tags_2.13:4.1.4

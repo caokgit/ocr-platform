@@ -1,0 +1,45 @@
+# The replayer as a Job in lab-data: a public Python image, the code from the ConfigMap replay-code, the Postgres
+# driver from PyPI at start (docs/specs/data-path.md#decisions, rows 5 and 6). pipelines/replay/launch.py fills in
+# NAME, ARGS and the commit stamp and creates it; Argo CD does not own it (it would restart a finished Job).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: NAME
+  namespace: lab-data
+  labels:
+    app.kubernetes.io/name: replayer
+    lab/git-commit: "GIT_COMMIT"  # the commit stamp, filled in by the launcher (docs/specs/data-path.md#layout)
+    lab/git-dirty: "GIT_DIRTY"
+spec:
+  backoffLimit: 0                 # a failed fill restarts from an empty live, never resumes
+  ttlSecondsAfterFinished: 86400  # its log stays a day
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: replayer
+        lab/git-commit: "GIT_COMMIT"
+        lab/git-dirty: "GIT_DIRTY"
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: replay
+          image: python:3.12.14-slim-trixie
+          command: ["sh", "-c"]
+          args:
+            - pip install --no-cache-dir --quiet --disable-pip-version-check --root-user-action=ignore
+              'psycopg[binary]==3.3.6' && exec python -u /code/replay.py ARGS
+          env:
+            - {name: PGHOST, value: lab-pg-rw}
+            - {name: PGPORT, value: "5432"}
+            - name: PGUSER
+              valueFrom: {secretKeyRef: {name: lab-pg-app, key: username}}
+            - name: PGPASSWORD
+              valueFrom: {secretKeyRef: {name: lab-pg-app, key: password}}
+          resources:
+            requests: {cpu: 200m, memory: 128Mi}
+            limits: {memory: 256Mi}
+          volumeMounts:
+            - {name: code, mountPath: /code, readOnly: true}
+      volumes:
+        - name: code
+          configMap: {name: replay-code}

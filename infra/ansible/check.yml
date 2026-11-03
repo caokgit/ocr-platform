@@ -1,0 +1,41 @@
+# Read-only box check: records the box's state on the laptop, addresses masked, so any two moments compare
+# with one diff (docs/specs/gpu-box-platform.md#box-check-and-masked-output). Changes nothing on the box.
+#   .venv/bin/ansible-playbook infra/ansible/check.yml -e label=baseline
+- name: Box check (read-only)
+  hosts: box
+  gather_facts: false
+  vars:
+    label: check
+    checks_dir: "{{ playbook_dir }}/../../.scratch_box/checks"
+  tasks:
+    - name: Read the box's state
+      ansible.builtin.script:
+        cmd: files/box-check.sh
+        executable: /bin/bash
+      become: true
+      register: box_state
+      changed_when: false
+      check_mode: false
+
+    - name: Mask the addresses (and drop the carriage returns ssh's terminal adds)
+      ansible.builtin.shell:
+        cmd: tr -d '\r' | python3 {{ playbook_dir }}/../../tools/mask.py
+        stdin: "{{ box_state.stdout }}"
+      delegate_to: localhost
+      register: masked
+      changed_when: false
+      check_mode: false
+
+    - name: Save the report on the laptop
+      ansible.builtin.copy:
+        content: "{{ masked.stdout }}\n"
+        dest: "{{ checks_dir }}/{{ now(fmt='%Y-%m-%d-%H%M') }}-{{ label }}.txt"
+        mode: "0600"
+      delegate_to: localhost
+      register: saved
+      changed_when: false
+      check_mode: false
+
+    - name: Summary (the details stay in the saved file)
+      ansible.builtin.debug:
+        msg: "{{ (masked.stdout.split('\n## ')[1].split('\n')[1:] | select | list) + ['saved: ' ~ (saved.dest | relpath(playbook_dir ~ '/../..'))] }}"

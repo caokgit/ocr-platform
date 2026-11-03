@@ -1,0 +1,66 @@
+# Alertmanager's webhook receiver for the lab: logs one line per alert with the time it arrived, so a drill can
+# measure when an alert fired and resolved. In production this is Teams, Slack or a pager.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alert-sink
+  namespace: monitoring
+data:
+  sink.py: |
+    import json, sys
+    from datetime import datetime, timezone
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    class Sink(BaseHTTPRequestHandler):
+        def do_POST(self):
+            body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            now = datetime.now(timezone.utc).strftime("%H:%M:%S")
+            for a in body.get("alerts", []):
+                labels = a["labels"]
+                print(f"{now} {a['status']:8} {labels.get('alertname')} {labels.get('namespace', '-')} "
+                      f"since={a['startsAt'][11:19]} {a['annotations'].get('summary', '')}", flush=True)
+            self.send_response(200)
+            self.end_headers()
+
+        def log_message(self, *args):
+            pass
+
+    HTTPServer(("", 8080), Sink).serve_forever()
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alert-sink
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: alert-sink}
+  template:
+    metadata:
+      labels: {app: alert-sink}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+      containers:
+        - name: sink
+          image: python:3.13-alpine
+          command: ["python", "-u", "/app/sink.py"]
+          ports: [{containerPort: 8080}]
+          resources:
+            requests: {cpu: 5m, memory: 16Mi}
+            limits: {memory: 48Mi}
+          volumeMounts: [{name: app, mountPath: /app}]
+      volumes:
+        - name: app
+          configMap: {name: alert-sink}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alert-sink
+  namespace: monitoring
+spec:
+  selector: {app: alert-sink}
+  ports: [{port: 8080}]

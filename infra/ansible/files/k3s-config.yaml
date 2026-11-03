@@ -1,0 +1,6 @@
+# k3s server settings (docs/specs/gpu-box-platform.md#decisions, rows 1 and 6).
+# Copied to /etc/rancher/k3s/config.yaml by bootstrap.yml.
+data-dir: /mnt/data/k3s
+disable:
+  - traefik
+  - servicelb

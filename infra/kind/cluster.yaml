@@ -1,0 +1,6 @@
+# One kind node for the AWS track's drills on the laptop (spec decision 23: the laptop has 7.5 GB).
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: ocr-lab
+nodes:
+  - role: control-plane

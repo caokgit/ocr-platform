@@ -1,0 +1,24 @@
+# Values every GPU box playbook shares (docs/specs/gpu-box-platform.md#decisions).
+k3s_version: v1.36.5+k3s1
+k3s_installer_url: https://raw.githubusercontent.com/k3s-io/k3s/v1.36.5%2Bk3s1/install.sh
+k3s_installer_sha256: 46177d4c99440b4c0311b67233823a8e8a2fc09693f6c89af1a7161e152fbfad
+k3s_data_dir: /mnt/data/k3s
+kubelet_data_dir: /mnt/data/k3s-kubelet
+k3s_manifests_dir: /mnt/data/k3s/server/manifests
+k3s_ranges:                     # pods, Services: k3s's defaults (row 7)
+  - 10.42.0.0/16
+  - 10.43.0.0/16
+k3s_ports:                      # every port k3s listens on outside 127.0.0.1 (read with ss, lab up)
+  - {port: 6443, proto: tcp}      # API and k3s supervisor
+  - {port: 10250, proto: tcp}     # kubelet
+  - {port: 8472, proto: udp}      # Flannel VXLAN
+
+# Pre-checks: the lab starts only when the box has room (docs/specs/gpu-box-platform.md#ansible-playbooks)
+min_mem_available_mib: 10240     # 6144 before the data path (docs/specs/data-path.md#box-budget)
+min_root_free_gb: 5
+min_data_free_gb: 50
+
+# The data path (docs/specs/data-path.md#lab-down-and-lab-up)
+data_namespace: lab-data
+data_ready_timeout_s: 600
+data_quiesce_timeout_s: 120

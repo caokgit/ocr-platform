@@ -1,0 +1,6 @@
+# The GPU box. BOX picks the road: gpu-box at the office (default), gpu-box-relay from home with the VPN on
+# (docs/runbooks/reach-the-box.md). Both names live in .scratch_ssh/config.
+all:
+  hosts:
+    box:
+      ansible_host: "{{ lookup('env', 'BOX') | default('gpu-box', true) }}"

@@ -1,0 +1,29 @@
+# The box has room for the lab, k3s's ports are free and no Tailscale route would be cleared
+# (docs/specs/gpu-box-platform.md#ansible-playbooks, pre-checks). Reads only.
+- name: Read memory, disk, ports, Tailscale routes and GPU use
+  ansible.builtin.shell:
+    cmd: |
+      echo "mem_available_mib=$(free -m | awk '/^Mem:/ {print $7}')"
+      echo "root_free_gb=$(df -BG --output=avail / | tail -1 | tr -dc 0-9)"
+      echo "data_free_gb=$(df -BG --output=avail /mnt/data | tail -1 | tr -dc 0-9)"
+      echo "ports_in_use=$(ss -Hlntu | awk '{print $5}' | grep -cE ':({{ k3s_ports | map(attribute='port') | join('|') }})$')"
+      echo "tailscale_routes=$(tailscale debug prefs 2>/dev/null | python3 -c 'import json,sys; print(len(json.load(sys.stdin).get("AdvertiseRoutes") or []))' 2>/dev/null || echo 0)"
+      nvidia-smi --query-gpu=index,memory.used,memory.total,utilization.gpu --format=csv,noheader | sed 's/^/gpu /'
+    executable: /bin/bash
+  become: true
+  register: pre
+  changed_when: false
+  check_mode: false
+
+- name: Pass only when the box has room and nothing would clash
+  vars:
+    v: "{{ dict(pre.stdout_lines | select('match', '^[a-z_]+=') | map('split', '=')) }}"
+  ansible.builtin.assert:
+    that:
+      - v.mem_available_mib | int >= min_mem_available_mib
+      - v.root_free_gb | int >= min_root_free_gb
+      - v.data_free_gb | int >= min_data_free_gb
+      - v.ports_in_use | int == 0 or (k3s_running | default(false))
+      - v.tailscale_routes | int == 0
+    fail_msg: "{{ pre.stdout_lines }}"
+    success_msg: "{{ pre.stdout_lines }}"

@@ -1,0 +1,31 @@
+# Alerts on what a user would notice (errors, latency, the service gone), each held for a while before it fires.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: podinfo
+  namespace: apps
+spec:
+  groups:
+    - name: podinfo
+      rules:
+        - alert: PodinfoHighErrorRate
+          expr: |
+            sum(rate(http_requests_total{namespace="apps", service="podinfo", status=~"5.."}[1m]))
+              / sum(rate(http_requests_total{namespace="apps", service="podinfo"}[1m])) > 0.05
+          for: 1m
+          labels: {severity: page}
+          annotations:
+            summary: "podinfo: {{ $value | humanizePercentage }} of requests fail"
+        - alert: PodinfoSlow
+          expr: |
+            histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket{namespace="apps", service="podinfo"}[5m]))) > 0.5
+          for: 5m
+          labels: {severity: ticket}
+          annotations:
+            summary: "podinfo: p99 latency {{ $value | humanizeDuration }}"
+        - alert: PodinfoDown
+          expr: absent(up{namespace="apps", service="podinfo"} == 1)
+          for: 1m
+          labels: {severity: page}
+          annotations:
+            summary: "podinfo: no healthy target is scraped"

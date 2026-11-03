@@ -1,0 +1,63 @@
+# The database being upgraded: PostgreSQL 16, a primary and a streaming replica, WAL archived to S3.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: pg16
+  namespace: db
+spec:
+  instances: 2
+  imageName: ghcr.io/cloudnative-pg/postgresql:16.13-minimal-trixie
+  enableSuperuserAccess: true
+  postgresql:
+    parameters:
+      shared_buffers: 32MB
+      wal_level: logical
+      max_slot_wal_keep_size: 512MB
+      archive_timeout: 60s
+  bootstrap:
+    initdb:
+      database: app
+      owner: app
+  storage:
+    size: 1Gi
+  resources:
+    requests: {cpu: 100m, memory: 128Mi}
+    limits: {memory: 384Mi}
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: lab-store
+---
+# One pooler per cluster (a Pooler's cluster cannot change after creation). Pausing it holds new queries.
+apiVersion: postgresql.cnpg.io/v1
+kind: Pooler
+metadata:
+  name: pg16-pooler
+  namespace: db
+spec:
+  cluster: {name: pg16}
+  instances: 1
+  type: rw
+  pgbouncer:
+    poolMode: session
+  template:
+    spec:
+      containers:
+        - name: pgbouncer
+          resources:
+            requests: {cpu: 20m, memory: 16Mi}
+            limits: {memory: 64Mi}
+---
+# The address clients use. Cutover moves its selector from pg16's pooler to pg17's: every client at once,
+# with no client setting changed.
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-db
+  namespace: db
+spec:
+  selector:
+    cnpg.io/poolerName: pg16-pooler
+  ports:
+    - {name: pgbouncer, port: 5432, targetPort: 5432}

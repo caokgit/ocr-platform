@@ -1,0 +1,73 @@
+# Debezium Server on live (docs/specs/data-path.md#decisions, rows 9 to 12): pgoutput through the slot lab_debezium
+# and the publication lab_debezium, JSON without schemas to Kafka, a heartbeat that keeps the slot moving while live
+# is quiet, its offsets in a file on its own volume. First applied after `replay.py init` made live's tables and
+# lab_meta.heartbeat (the heartbeat query needs it), then adopted by Argo CD.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: debezium-data
+  namespace: lab-data
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path
+  resources:
+    requests: {storage: 1Gi}
+---
+apiVersion: debezium.io/v1alpha1
+kind: DebeziumServer
+metadata:
+  name: lab-debezium
+  namespace: lab-data
+spec:
+  image: quay.io/debezium/server:3.7.0.Final
+  runtime:
+    environment:
+      from:
+        - secretRef: {name: lab-pg-debezium}
+          prefix: PG_
+    storage:
+      data:
+        type: persistent
+        claimName: debezium-data
+    templates:
+      container:
+        resources:
+          requests: {cpu: 100m, memory: 384Mi}
+          limits: {memory: 768Mi}
+  source:
+    class: io.debezium.connector.postgresql.PostgresConnector
+    offset:
+      file:
+        fileName: /debezium/data/offsets.dat   # absolute: a bare name lands in /debezium, not writable
+      flushMs: 1000
+    config:
+      database.hostname: lab-pg-rw
+      database.port: 5432
+      database.user: ${PG_username}
+      database.password: ${PG_password}
+      database.dbname: live
+      topic.prefix: lab
+      plugin.name: pgoutput
+      slot.name: lab_debezium
+      publication.name: lab_debezium
+      publication.autocreate.mode: disabled
+      snapshot.mode: initial
+      heartbeat.interval.ms: 10000
+      heartbeat.action.query: >-
+        INSERT INTO lab_meta.heartbeat (id, ts) VALUES (1, now())
+        ON CONFLICT (id) DO UPDATE SET ts = EXCLUDED.ts
+      tombstones.on.delete: false
+  format:
+    key:
+      type: json
+      config: {schemas.enable: false}
+    value:
+      type: json
+      config: {schemas.enable: false}
+  sink:
+    type: kafka
+    config:
+      producer.bootstrap.servers: lab-kafka-kafka-bootstrap:9092
+      producer.key.serializer: org.apache.kafka.common.serialization.StringSerializer
+      producer.value.serializer: org.apache.kafka.common.serialization.StringSerializer
+      producer.max.request.size: 2097152

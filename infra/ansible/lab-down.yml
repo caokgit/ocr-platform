@@ -1,0 +1,128 @@
+# Stop the lab: k3s stopped, every lab container killed with k3s-killall.sh (K3S_DATA_DIR set, row 12),
+# the kubelet's folder unmounted; data kept (docs/specs/gpu-box-platform.md#ansible-playbooks).
+- name: Stop the lab on the GPU box
+  hosts: box
+  gather_facts: false
+  vars_files: [vars.yml]
+  tasks:
+    - name: Read Tailscale's advertised routes (k3s-killall.sh would clear them, row 13)
+      ansible.builtin.shell:
+        cmd: tailscale debug prefs 2>/dev/null | python3 -c 'import json,sys; print(len(json.load(sys.stdin).get("AdvertiseRoutes") or []))' 2>/dev/null || echo 0
+      become: true
+      register: ts_routes
+      changed_when: false
+      check_mode: false
+
+    - name: Stop if the box advertises Tailscale routes
+      ansible.builtin.assert:
+        that: ts_routes.stdout | int == 0
+        fail_msg: "Tailscale advertises routes; k3s-killall.sh would clear them. Ask the AI team first."
+        quiet: true
+
+    - name: Is k3s running?
+      ansible.builtin.command: systemctl is-active k3s
+      register: k3s_state
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: The data path's pods before the stop
+      ansible.builtin.command: /usr/local/bin/k3s kubectl get pods -n {{ data_namespace }} --no-headers --ignore-not-found
+      register: data_pods
+      changed_when: false
+      failed_when: false
+      become: true
+      check_mode: false
+      when: k3s_state.stdout == 'active'
+
+    - name: List them
+      ansible.builtin.debug:
+        msg: "{{ data_pods.stdout_lines | default([]) }}"
+
+    - name: Quiesce the data path, stop its on-demand runs (running Jobs, SparkApplications) and wait for their pods
+      ansible.builtin.shell:
+        cmd: |
+          k() { /usr/local/bin/k3s kubectl "$@"; }
+          ns={{ data_namespace }}
+          jobs=$(k get jobs -n $ns -o jsonpath='{range .items[?(@.status.active)]}job/{.metadata.name}{"\n"}{end}' 2>/dev/null)
+          sparks=$(k get sparkapplications -n $ns --no-headers -o custom-columns=N:.metadata.name,S:.status.applicationState.state 2>/dev/null \
+                   | awk '$2 != "COMPLETED" && $2 != "FAILED" {print "sparkapplication/" $1}')   # finished runs stay
+          runs=$(printf '%s\n%s\n' "$jobs" "$sparks" | grep -v '^$' || true)
+          [ -z "$runs" ] && { echo "no on-demand run"; exit 0; }
+          echo "$runs"
+          # foreground: each delete returns once the run's pods (a Job's, a Spark driver and its executors) are gone
+          echo "$runs" | xargs /usr/local/bin/k3s kubectl delete -n $ns --cascade=foreground --wait=true --timeout={{ data_quiesce_timeout_s }}s
+      register: quiesce
+      changed_when: "'no on-demand run' not in quiesce.stdout"
+      become: true
+      when: k3s_state.stdout == 'active'
+
+    - name: Quiesced
+      ansible.builtin.debug:
+        msg: "{{ quiesce.stdout_lines | default(['k3s not running']) }}"
+
+    - name: Stop k3s
+      ansible.builtin.systemd_service:
+        name: k3s
+        state: stopped
+      become: true
+
+    - name: Count what is left of the lab (container shims, mounts, pod network spaces, network links)
+      ansible.builtin.shell:
+        cmd: |
+          left=$(( $(pgrep -fc '{{ k3s_data_dir }}/data/[^/]*/bin/containerd-shim' || true)
+                 + $(findmnt -rn -o TARGET | grep -cE '^/run/k3s|^/var/lib/kubelet/pods' || true)
+                 + $(ls /run/netns 2>/dev/null | grep -c '^cni-' || true)
+                 + $(ip -br link | grep -cE '^(cni0|flannel)' || true) ))
+          echo "left=$left"
+      become: true
+      register: leftover
+      changed_when: false
+      check_mode: false
+
+    - name: Kill the lab's containers and clean k3s's network (only if something is left)
+      ansible.builtin.command: /usr/local/bin/k3s-killall.sh
+      environment:
+        K3S_DATA_DIR: "{{ k3s_data_dir }}"
+      become: true
+      when: leftover.stdout != 'left=0'
+
+    - name: Unmount the kubelet's folder
+      ansible.builtin.systemd_service:
+        name: var-lib-kubelet.mount
+        state: stopped
+      become: true
+
+    - name: Read what runs now
+      ansible.builtin.shell:
+        cmd: |
+          echo "k3s processes: $(pgrep -c -f '^/usr/local/bin/k3s' || true)"
+          echo "lab containers: $(pgrep -fc '{{ k3s_data_dir }}/data/[^/]*/bin/containerd-shim' || true)"
+          findmnt -n /var/lib/kubelet >/dev/null && echo "/var/lib/kubelet: mounted" || echo "/var/lib/kubelet: not mounted"
+          echo "lab mounts: $(findmnt -rn -o TARGET | grep -cE '^/run/k3s|^/var/lib/kubelet' || true)"
+          echo "pod network spaces: $(ls /run/netns 2>/dev/null | grep -c '^cni-' || true)"
+          echo "lab network links: $(ip -br link | grep -cE '^(cni0|flannel)' || true)"
+          echo "lab iptables rules: $( { iptables-save; ip6tables-save; } | grep -ciE 'KUBE-|CNI-|FLANNEL' || true)"
+      become: true
+      register: after
+      changed_when: false
+      check_mode: false
+
+    - name: Nothing of the lab runs
+      ansible.builtin.assert:
+        that:
+          - "'k3s processes: 0' in after.stdout"
+          - "'lab containers: 0' in after.stdout"
+          - "'not mounted' in after.stdout"
+          - "'lab mounts: 0' in after.stdout"
+          - "'pod network spaces: 0' in after.stdout"
+          - "'lab network links: 0' in after.stdout"
+          - "'lab iptables rules: 0' in after.stdout"
+        success_msg: "{{ after.stdout_lines }}"
+        fail_msg: "{{ after.stdout_lines }}"
+      when: not ansible_check_mode
+
+- name: Box check after lab-down
+  ansible.builtin.import_playbook: check.yml
+  vars:
+    label: lab-down

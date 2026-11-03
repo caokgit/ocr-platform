@@ -1,0 +1,59 @@
+# The platform add-ons on the eks cluster. Values: infra/platform/values/<name>/common.yaml, then eks.yaml.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: platform
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - list:
+        elements:
+          - {name: cert-manager, namespace: cert-manager, repoURL: https://charts.jetstack.io, chart: cert-manager, version: v1.21.3, wave: "0"}
+          - {name: envoy-gateway, namespace: envoy-gateway-system, repoURL: docker.io/envoyproxy, chart: gateway-helm, version: v1.9.3, wave: "0"}
+          - {name: external-secrets, namespace: external-secrets, repoURL: https://charts.external-secrets.io, chart: external-secrets, version: 2.14.0, wave: "0"}
+          - {name: metrics-server, namespace: kube-system, repoURL: https://kubernetes-sigs.github.io/metrics-server, chart: metrics-server, version: 3.14.0, wave: "0"}
+          - {name: kube-prometheus-stack, namespace: monitoring, repoURL: https://prometheus-community.github.io/helm-charts, chart: kube-prometheus-stack, version: 92.17.1, wave: "0"}
+          - {name: loki, namespace: monitoring, repoURL: https://grafana.github.io/helm-charts, chart: loki, version: 7.5.0, wave: "1"}
+          - {name: alloy, namespace: monitoring, repoURL: https://grafana.github.io/helm-charts, chart: alloy, version: 1.15.0, wave: "1"}
+          - {name: kyverno, namespace: kyverno, repoURL: https://kyverno.github.io/kyverno, chart: kyverno, version: 3.9.2, wave: "0"}
+          - {name: argo-rollouts, namespace: argo-rollouts, repoURL: https://argoproj.github.io/argo-helm, chart: argo-rollouts, version: 2.43.8, wave: "0"}
+          - {name: keda, namespace: keda, repoURL: https://kedacore.github.io/charts, chart: keda, version: 2.21.0, wave: "0"}
+          - {name: karpenter, namespace: kube-system, repoURL: public.ecr.aws/karpenter, chart: karpenter, version: 1.15.1, wave: "0"}
+  template:
+    metadata:
+      name: "{{.name}}"
+      annotations:
+        argocd.argoproj.io/sync-wave: "{{.wave}}"
+    spec:
+      project: default
+      sources:
+        - repoURL: "{{.repoURL}}"
+          chart: "{{.chart}}"
+          targetRevision: "{{.version}}"
+          helm:
+            releaseName: "{{.name}}"
+            ignoreMissingValueFiles: true
+            valueFiles:
+              - $values/infra/platform/values/{{.name}}/common.yaml
+              - $values/infra/platform/values/{{.name}}/eks.yaml
+        - repoURL: https://github.com/caokgit/ocr-platform.git
+          targetRevision: main
+          ref: values
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "{{.namespace}}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+        retry:
+          limit: 10
+          backoff:
+            duration: 15s
+            factor: 2
+            maxDuration: 3m

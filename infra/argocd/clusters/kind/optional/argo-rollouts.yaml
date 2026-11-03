@@ -1,0 +1,39 @@
+# Optional on kind (laptop memory): applied by the drill that needs it, deleted after. Always on in eks/apps.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argo-rollouts
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: https://argoproj.github.io/argo-helm
+      chart: argo-rollouts
+      targetRevision: 2.43.8
+      helm:
+        releaseName: argo-rollouts
+        ignoreMissingValueFiles: true
+        valueFiles:
+          - $values/infra/platform/values/argo-rollouts/common.yaml
+          - $values/infra/platform/values/argo-rollouts/kind.yaml
+    - repoURL: git://git.lab-infra.svc.cluster.local/ml-init.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argo-rollouts
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 3m

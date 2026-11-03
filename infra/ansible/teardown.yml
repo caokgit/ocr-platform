@@ -1,0 +1,202 @@
+# Teardown: the box as if the lab never existed (docs/specs/gpu-box-platform.md#teardown, steps 1 to 11).
+# Run for real only when the lab ends; until then only previewed: --check --diff (acceptance A10).
+# Every removal is limited to what the lab added; nothing of the AI team's is touched.
+
+# Step 1: the lab stopped, its network and iptables rules gone (lab-down checks every count is 0)
+- name: Step 1, stop the lab
+  ansible.builtin.import_playbook: lab-down.yml
+
+- name: Teardown, steps 1 to 8
+  hosts: box
+  gather_facts: false
+  vars_files: [vars.yml]
+  vars:
+    k3s_ipset: "{{ k3s_data_dir }}/data/current/bin/ipset"
+  tasks:
+    - name: Step 1, revoke at the server first, delete Argo CD's deploy key on GitHub (repo Settings, Deploy keys, "ml-lab argocd read-only")
+      ansible.builtin.pause:
+        prompt: "Delete the deploy key 'ml-lab argocd read-only' on GitHub, then press Enter"
+      when: not ansible_check_mode
+
+    - name: Step 2, destroy kube-router's KUBE-* ipsets (with k3s's own ipset tool, before step 3 removes it)
+      ansible.builtin.shell:
+        cmd: |
+          [ -x {{ k3s_ipset }} ] || { echo "no ipset tool"; exit 0; }
+          sets=$({{ k3s_ipset }} list -n | grep '^KUBE-' || true)
+          for s in $sets; do {{ k3s_ipset }} destroy "$s"; done
+          echo "destroyed: $(echo $sets | wc -w)"
+      become: true
+      register: ipsets
+      changed_when: "'destroyed: 0' not in ipsets.stdout and 'no ipset tool' not in ipsets.stdout"
+
+    - name: Step 3, k3s's own uninstall (binary, scripts, unit, /etc/rancher/k3s, /run/k3s, /var/lib/kubelet, the data dir)
+      ansible.builtin.command:
+        cmd: /usr/local/bin/k3s-uninstall.sh
+        removes: /usr/local/bin/k3s-uninstall.sh
+      environment:
+        K3S_DATA_DIR: "{{ k3s_data_dir }}"
+      become: true
+
+    - name: Step 4, what k3s's scripts leave (pod logs on /, the node password, the device plugin's CDI file)
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/rancher
+        - /var/log/pods
+        - /var/log/containers
+        - /var/run/cdi/k8s.device-plugin.nvidia.com-gpu.json
+      become: true
+
+    - name: Step 4, read what else is in the GPU Operator's host folders
+      ansible.builtin.shell:
+        cmd: |
+          echo "kubernetes_other=$(find /etc/kubernetes -mindepth 1 -maxdepth 1 ! -name node-feature-discovery 2>/dev/null | wc -l)"
+          echo "nvidia_other=$(find /run/nvidia -mindepth 1 -maxdepth 1 ! -name driver ! -name mps ! -name validations 2>/dev/null | wc -l)"
+          echo "libexec_files=$(find /usr/libexec/kubernetes -type f 2>/dev/null | wc -l)"
+          echo "nri_other=$(find /run/nri -mindepth 1 -maxdepth 1 ! -name nri.sock 2>/dev/null | wc -l)"
+          echo "nri_listeners=$(ss -xl | grep -c 'nri.sock' || true)"
+      become: true
+      register: host_folders
+      changed_when: false
+      check_mode: false
+
+    - name: Step 4, remove the GPU Operator's host folders, the kubelet's empty plugin folders and the NRI socket (each only if nothing else is in it or uses it)
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: >-
+        {{ (['/etc/kubernetes'] if 'kubernetes_other=0' in host_folders.stdout else ['/etc/kubernetes/node-feature-discovery'])
+           + (['/run/nvidia'] if 'nvidia_other=0' in host_folders.stdout
+              else ['/run/nvidia/driver', '/run/nvidia/mps', '/run/nvidia/validations'])
+           + (['/usr/libexec/kubernetes'] if 'libexec_files=0' in host_folders.stdout else [])
+           + (['/run/nri'] if 'nri_other=0' in host_folders.stdout and 'nri_listeners=0' in host_folders.stdout else []) }}
+      become: true
+
+    - name: Step 5, the lab's systemd files and the kubelet's folder on /mnt/data
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/systemd/system/var-lib-kubelet.mount
+        - /etc/systemd/system/k3s.service.d
+        - "{{ kubelet_data_dir }}"
+      become: true
+      register: units
+
+    - name: Step 5, systemd forgets them
+      ansible.builtin.shell:
+        cmd: systemctl daemon-reload && systemctl reset-failed k3s.service var-lib-kubelet.mount 2>/dev/null; true
+      become: true
+      when: units is changed
+
+    - name: Step 6, the lab's ufw allows
+      community.general.ufw:
+        rule: allow
+        from_ip: "{{ item }}"
+        delete: true
+      loop: "{{ k3s_ranges }}"
+      become: true
+
+    - name: Step 6, the lab's ufw denies (IPv4 and IPv6)
+      community.general.ufw:
+        rule: deny
+        from_ip: "{{ item.0 }}"
+        to_port: "{{ item.1.port }}"
+        proto: "{{ item.1.proto }}"
+        delete: true
+      loop: "{{ ['0.0.0.0/0', '::/0'] | product(k3s_ports) | list }}"
+      become: true
+
+    - name: Step 7, Argo CD's key pair, Ansible's and kubectl's caches in root's home
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/ml-lab
+        - /root/.ansible
+        - /root/.kube
+      become: true
+
+    - name: Step 8, unload the kernel modules the lab loaded, where nothing uses them (else the next reboot does)
+      ansible.builtin.shell:
+        cmd: |
+          for m in br_netfilter vxlan ip6_udp_tunnel udp_tunnel xt_set ip_set; do
+            if lsmod | awk '{print $1}' | grep -qx "$m"; then
+              modprobe -r "$m" 2>/dev/null && echo "unloaded $m" || echo "kept $m (in use, until the next reboot)"
+            fi
+          done
+          if grep -q '^cri-containerd.apparmor.d ' /sys/kernel/security/apparmor/profiles 2>/dev/null; then
+            printf 'cri-containerd.apparmor.d' > /sys/kernel/security/apparmor/.remove && echo "removed the cri-containerd AppArmor profile"
+          fi
+      become: true
+      register: kernel
+      changed_when: kernel.stdout | length > 0
+
+    - name: What the kernel keeps until the next reboot
+      ansible.builtin.debug:
+        msg: "{{ kernel.stdout_lines | default([]) }}"
+
+# Step 9: the box compared with the baseline (diff the saved file with the baseline's, runbook step)
+- name: Step 9, box check after the removals
+  ansible.builtin.import_playbook: check.yml
+  vars:
+    label: teardown
+
+- name: Teardown, steps 10 and 11 (the lab's last access goes last)
+  hosts: box
+  gather_facts: false
+  tasks:
+    - name: Read the account's name
+      ansible.builtin.command: id -un
+      register: box_user
+      changed_when: false
+      check_mode: false
+
+    - name: Step 10, passwordless sudo (D13)
+      ansible.builtin.file:
+        path: /etc/sudoers.d/{{ box_user.stdout }}
+        state: absent
+      become: true
+
+    - name: Step 10, check, sudo now asks for a password
+      ansible.builtin.command: sudo -n true
+      register: sudo_after
+      changed_when: false
+      failed_when: sudo_after.rc == 0
+      when: not ansible_check_mode
+
+    - name: Step 11, Ansible's folder in the account's home
+      ansible.builtin.file:
+        path: ~/.ansible
+        state: absent
+
+    - name: Step 11, read what else is in ~/.ssh (ssh-copy-id created both it and authorized_keys for the lab, 2026-10-23)
+      ansible.builtin.shell:
+        cmd: |
+          echo "other_files=$(find ~/.ssh -mindepth 1 -maxdepth 1 ! -name authorized_keys | wc -l)"
+          echo "other_keys=$(grep -vc 'ml-lab laptop to gpu-box' ~/.ssh/authorized_keys 2>/dev/null || true)"
+      register: ssh_dir
+      changed_when: false
+      check_mode: false
+
+    - name: Step 11, the laptop's login, last (owner, 2026-10-30), the whole ~/.ssh if it holds only the lab's key
+      ansible.builtin.file:
+        path: ~/.ssh
+        state: absent
+      when: "'other_files=0' in ssh_dir.stdout and 'other_keys=0' in ssh_dir.stdout"
+
+    - name: Step 11, else only the lab's key line
+      ansible.builtin.lineinfile:
+        path: ~/.ssh/authorized_keys
+        regexp: "ml-lab laptop to gpu-box"
+        state: absent
+      when: "not ('other_files=0' in ssh_dir.stdout and 'other_keys=0' in ssh_dir.stdout)"
+
+    - name: Step 11, check from the laptop, the key login is refused
+      ansible.builtin.command: ssh -o BatchMode=yes -o ConnectTimeout=10 -F .scratch_ssh/config {{ ansible_host }} true
+      delegate_to: localhost
+      register: login_after
+      changed_when: false
+      failed_when: login_after.rc == 0
+      when: not ansible_check_mode

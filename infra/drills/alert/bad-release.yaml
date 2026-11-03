@@ -1,0 +1,5 @@
+# The drill's bad release: podinfo with --random-error (one request in three fails). Added to the kind overlay by
+# infra/drills/alert/run.sh inject, removed by run.sh fix, each as a commit Argo CD syncs.
+- op: add
+  path: /spec/template/spec/containers/0/command/-
+  value: --random-error

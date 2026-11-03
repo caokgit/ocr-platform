@@ -1,0 +1,42 @@
+# Argo CD on kind, installed once by infra/kind/up.sh; small, no SSO, polls the local Git server every 30 s.
+global:
+  domain: argocd.lab.internal
+
+configs:
+  params:
+    server.insecure: true
+  cm:
+    timeout.reconciliation: 30s
+  repositories:
+    # Envoy Gateway's chart is published only as an OCI artifact.
+    envoy-gateway:
+      name: envoy-gateway
+      type: helm
+      url: docker.io/envoyproxy
+      enableOCI: "true"
+
+dex:
+  enabled: false
+notifications:
+  enabled: false
+
+controller:
+  resources:
+    requests: {cpu: 100m, memory: 384Mi}
+    limits: {memory: 1Gi}
+repoServer:
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {memory: 512Mi}
+server:
+  resources:
+    requests: {cpu: 20m, memory: 64Mi}
+    limits: {memory: 256Mi}
+applicationSet:
+  resources:
+    requests: {cpu: 20m, memory: 64Mi}
+    limits: {memory: 256Mi}
+redis:
+  resources:
+    requests: {cpu: 20m, memory: 32Mi}
+    limits: {memory: 128Mi}

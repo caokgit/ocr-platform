@@ -1,0 +1,6 @@
+# On kind, AWS is LocalStack: the AWS SDK's service endpoint variable sends Secrets Manager calls there.
+extraEnv:
+  - name: AWS_ENDPOINT_URL_SECRETS_MANAGER
+    value: http://localstack.lab-infra.svc.cluster.local:4566
+  - name: AWS_ENDPOINT_URL_STS
+    value: http://localstack.lab-infra.svc.cluster.local:4566

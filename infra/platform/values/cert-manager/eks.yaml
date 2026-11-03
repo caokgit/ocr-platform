@@ -1,0 +1,6 @@
+# The service account the Route 53 DNS-01 role is bound to through Pod Identity (Terraform's iam module).
+serviceAccount:
+  name: cert-manager
+global:
+  nodeSelector:
+    node-role: system

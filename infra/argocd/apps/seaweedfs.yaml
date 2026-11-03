@@ -1,0 +1,47 @@
+# SeaweedFS in all-in-one mode (one pod: master, volume, filer, S3 on port 8333), the bucket lab-lake made by
+# the chart's hook (docs/specs/data-path.md#object-store, rows 13 and 23). The S3 identities come from the
+# Secret seaweedfs-s3-config, made by infra/scripts/lab-credentials.py, never from Git.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: seaweedfs
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://seaweedfs.github.io/seaweedfs/helm
+    chart: seaweedfs
+    targetRevision: 4.51.0
+    helm:
+      valuesObject:
+        master: {enabled: false}
+        volume: {enabled: false}
+        filer: {enabled: false}
+        allInOne:
+          enabled: true
+          s3:
+            enabled: true
+            enableAuth: true
+            existingConfigSecret: seaweedfs-s3-config
+            createBuckets:
+              - name: lab-lake
+            createBucketsHook:
+              resources:
+                requests: {cpu: 50m, memory: 64Mi}
+                limits: {memory: 256Mi}
+          data: {type: persistentVolumeClaim, size: 20Gi, storageClass: local-path}
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {memory: 1Gi}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: lab-data
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+    retry:
+      limit: 10
+      backoff: {duration: 15s, factor: 2, maxDuration: 3m}

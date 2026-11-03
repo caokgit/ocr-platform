@@ -1,0 +1,44 @@
+# Read-only: the lab's footprint on the box since the baseline, saved masked on the laptop; the teardown
+# inventory is checked against it (docs/specs/gpu-box-platform.md#teardown). Runs at the lowest CPU and disk
+# priority (nice 19, ionice idle). Changes nothing on the box.
+#   .venv/bin/ansible-playbook infra/ansible/footprint.yml -e "since='2026-10-30 14:54'" -e label=after-lab-down
+- name: The lab's footprint on the box (read-only)
+  hosts: box
+  gather_facts: false
+  vars:
+    label: footprint
+    out_dir: "{{ playbook_dir }}/../../.scratch_box/checks"
+  tasks:
+    - name: Read where anything changed since the baseline, what acts at boot, and the kernel state
+      ansible.builtin.script:
+        cmd: files/footprint.sh
+        executable: nice -n 19 ionice -c 3 /bin/bash
+      environment:
+        SINCE: "{{ since }}"
+      become: true
+      register: footprint
+      changed_when: false
+      check_mode: false
+
+    - name: Mask it (and drop the carriage returns ssh's terminal adds)
+      ansible.builtin.shell:
+        cmd: tr -d '\r' | python3 {{ playbook_dir }}/../../tools/mask.py
+        stdin: "{{ footprint.stdout }}"
+      delegate_to: localhost
+      register: masked
+      changed_when: false
+      check_mode: false
+
+    - name: Save it on the laptop (it names the AI team's paths, so it stays out of the repo)
+      ansible.builtin.copy:
+        content: "{{ masked.stdout }}\n"
+        dest: "{{ out_dir }}/{{ now(fmt='%Y-%m-%d-%H%M') }}-footprint-{{ label }}.txt"
+        mode: "0600"
+      delegate_to: localhost
+      register: saved
+      changed_when: false
+      check_mode: false
+
+    - name: Where it is
+      ansible.builtin.debug:
+        msg: "saved: {{ saved.dest | relpath(playbook_dir ~ '/../..') }}"

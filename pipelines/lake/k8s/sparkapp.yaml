@@ -1,0 +1,63 @@
+# One lake job as a SparkApplication in lab-data: Spark 4.1.4, its jars on the volume spark-data (fetched once,
+# never by spark-submit, which runs in the operator's pod), the code from the ConfigMap lake-code (docs/specs/data-path.md#decisions, rows 15 to 17, 21).
+# pipelines/lake/launch.py fills in NAME, JOB and the commit stamp and creates it, from the laptop; Argo CD does not own it.
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: NAME
+  namespace: lab-data
+  labels: &stamp
+    lab/git-commit: "GIT_COMMIT"  # the commit stamp, also on the driver and executor pods (docs/specs/data-path.md#layout)
+    lab/git-dirty: "GIT_DIRTY"
+spec:
+  type: Python
+  pythonVersion: "3"
+  mode: cluster
+  image: apache/spark:4.1.4-scala2.13-java21-python3-ubuntu
+  imagePullPolicy: IfNotPresent
+  mainApplicationFile: local:///opt/lab/JOB.py
+  sparkVersion: 4.1.4
+  restartPolicy:
+    type: Never
+  sparkConf:                          # the jars of pipelines/lake/jars.txt, fetched once onto spark-data
+    spark.driver.extraClassPath: /data/jars/*
+    spark.executor.extraClassPath: /data/jars/*
+    spark.ui.enabled: "false"
+    spark.sql.shuffle.partitions: "8"   # the default 200 multiplies tasks and buffers for batches this small
+    spark.ui.retainedJobs: "100"        # the driver keeps every job's history, UI or not; a batch runs ~150 jobs
+    spark.ui.retainedStages: "100"
+    spark.ui.retainedTasks: "2000"
+    spark.sql.ui.retainedExecutions: "20"
+    spark.sql.streaming.numRecentProgressUpdates: "20"
+  volumes:
+    - name: code
+      configMap: {name: lake-code}
+    - name: data
+      persistentVolumeClaim: {claimName: spark-data}
+  driver:                             # the overhead holds the JVM's own memory and the Python process too;
+    cores: 1                          # 640m + 384m was OOMKilled during the first fill (2026-11-01)
+    memory: 512m
+    memoryOverhead: 640m
+    serviceAccount: spark-operator-spark
+    labels: *stamp
+    env: &env
+      - {name: AWS_REGION, value: us-east-1}
+      - name: AWS_ACCESS_KEY_ID
+        valueFrom: {secretKeyRef: {name: lab-s3, key: AWS_ACCESS_KEY_ID}}
+      - name: AWS_SECRET_ACCESS_KEY
+        valueFrom: {secretKeyRef: {name: lab-s3, key: AWS_SECRET_ACCESS_KEY}}
+      - name: CATALOG_USER
+        valueFrom: {secretKeyRef: {name: lab-pg-spark, key: username}}
+      - name: CATALOG_PASSWORD
+        valueFrom: {secretKeyRef: {name: lab-pg-spark, key: password}}
+    volumeMounts: &mounts
+      - {name: code, mountPath: /opt/lab, readOnly: true}
+      - {name: data, mountPath: /data}
+  executor:                           # OOMKilled at 1g + 384m and 1536m + 512m; peaked at 1,665 MiB with 1g + 1g
+    instances: 1
+    cores: 1
+    memory: 1g
+    memoryOverhead: 896m
+    labels: *stamp
+    env: *env
+    volumeMounts: *mounts

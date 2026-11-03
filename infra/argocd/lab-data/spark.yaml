@@ -1,0 +1,13 @@
+# Spark's own volume in lab-data: the streaming job's checkpoint and the jars it pulls from Maven at start, kept
+# between runs and across lab-down (docs/specs/data-path.md#spark-and-the-catalog, row 15). The driver and the
+# executor run on the one node, so both mount it.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: spark-data
+  namespace: lab-data
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path
+  resources:
+    requests: {storage: 5Gi}

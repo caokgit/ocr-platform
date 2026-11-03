@@ -1,0 +1,21 @@
+# The EKS cluster's root, applied once after Argo CD is installed on the system node group.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root-eks
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/caokgit/ocr-platform.git
+    targetRevision: main
+    path: infra/argocd/clusters/eks/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

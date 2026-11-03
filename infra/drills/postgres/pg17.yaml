@@ -1,0 +1,79 @@
+# The target: PostgreSQL 17, the schema imported from pg16 (no rows), the same app role and password, then rows
+# streamed by logical replication from a Publication on pg16 to a Subscription here.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: pg17
+  namespace: db
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.10-minimal-trixie
+  enableSuperuserAccess: true
+  postgresql:
+    parameters:
+      shared_buffers: 32MB
+  bootstrap:
+    initdb:
+      database: app
+      owner: app
+      secret: {name: pg16-app}
+      import:
+        type: microservice
+        databases: [app]
+        source: {externalCluster: pg16}
+        schemaOnly: true
+  externalClusters:
+    - name: pg16
+      connectionParameters:
+        host: pg16-rw
+        user: postgres
+        dbname: app
+      password: {name: pg16-superuser, key: password}
+  storage:
+    size: 1Gi
+  resources:
+    requests: {cpu: 100m, memory: 128Mi}
+    limits: {memory: 384Mi}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Pooler
+metadata:
+  name: pg17-pooler
+  namespace: db
+spec:
+  cluster: {name: pg17}
+  instances: 1
+  type: rw
+  pgbouncer:
+    poolMode: session
+  template:
+    spec:
+      containers:
+        - name: pgbouncer
+          resources:
+            requests: {cpu: 20m, memory: 16Mi}
+            limits: {memory: 64Mi}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Publication
+metadata:
+  name: pg16-orders
+  namespace: db
+spec:
+  cluster: {name: pg16}
+  dbname: app
+  name: orders_pub
+  target:
+    allTables: true
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Subscription
+metadata:
+  name: pg17-orders
+  namespace: db
+spec:
+  cluster: {name: pg17}
+  dbname: app
+  name: orders_sub
+  publicationName: orders_pub
+  externalClusterName: pg16

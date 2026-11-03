@@ -1,0 +1,41 @@
+# Prometheus picks up every ServiceMonitor, PodMonitor and PrometheusRule in the cluster, not only the chart's own.
+prometheus:
+  prometheusSpec:
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    scrapeInterval: 15s
+    evaluationInterval: 15s
+
+alertmanager:
+  config:
+    route:
+      receiver: lab-sink
+      group_by: [alertname, namespace]
+      group_wait: 10s
+      group_interval: 1m
+      repeat_interval: 4h
+      routes:
+        - receiver: "null"
+          matchers: [alertname = "Watchdog"]
+    receivers:
+      - name: "null"
+      # Every notification is logged with its arrival time by the sink (infra/platform/manifests/base/alert-sink.yaml).
+      - name: lab-sink
+        webhook_configs:
+          - url: http://alert-sink.monitoring.svc:8080/
+            send_resolved: true
+
+grafana:
+  adminPassword: lab-only-change-me
+  # Grafana 12 downloads its default plugins at every start; offline and quicker without them.
+  env:
+    GF_PLUGINS_PREINSTALL_DISABLED: "true"
+  sidecar:
+    datasources:
+      alertmanager:
+        enabled: true
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      url: http://loki.monitoring.svc:3100

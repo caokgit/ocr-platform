@@ -1,0 +1,28 @@
+# Cluster-wide objects the add-ons' CRDs define: Gateway, issuers, secret store, policies.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: git://git.lab-infra.svc.cluster.local/ml-init.git
+    targetRevision: main
+    path: infra/platform/manifests/kind
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - SkipDryRunOnMissingResource=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 3m
