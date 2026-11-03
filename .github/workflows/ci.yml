@@ -25,9 +25,14 @@ jobs:
       - uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337 # v6.3.2
         with:
           tflint_version: v0.65.0
-      - uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
-        with:
-          version: v0.76.1
+      # Trivy from its release, checksum-verified (setup-trivy's installer failed to connect on the first run).
+      - name: Trivy 0.76.1
+        run: |
+          V=0.76.1; cd "$(mktemp -d)"
+          curl -fsSLO --retry 3 https://github.com/aquasecurity/trivy/releases/download/v$V/trivy_${V}_Linux-64bit.tar.gz
+          curl -fsSLO --retry 3 https://github.com/aquasecurity/trivy/releases/download/v$V/trivy_${V}_checksums.txt
+          grep " trivy_${V}_Linux-64bit.tar.gz$" trivy_${V}_checksums.txt | sha256sum -c
+          sudo tar -xzf trivy_${V}_Linux-64bit.tar.gz -C /usr/local/bin trivy
       - name: fmt, validate, terraform test (mocked AWS), tflint, Trivy
         env:
           GITHUB_TOKEN: ${{ github.token }} # tflint --init downloads its AWS ruleset
