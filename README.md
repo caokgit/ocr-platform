@@ -3,8 +3,8 @@
 The first two phases of an ML platform, built around a real OCR workload: a GPU cluster run by GitOps on k3s, and a
 change data capture (CDC) path into an Iceberg lakehouse with datasets named by version. It runs on an Ubuntu machine
 in the office with two GPUs, shared with the AI team that builds the workload. Next to it, [the AWS track](#the-aws-track)
-writes the same platform for AWS and EKS in Terraform, **not applied to a real AWS account**: it is checked by a mocked
-apply and an apply on LocalStack, and the cluster layer and its operations drills run on kind. I am a cloud, DevOps and data
+writes the same platform for AWS and EKS in Terraform and proves it without an AWS account: tested against a mocked
+AWS, applied to LocalStack, and run on kind with measured operations drills. I am a cloud, DevOps and data
 platform engineer in the same company; I built and run the lab, every step checked against acceptance criteria with
 real output. Training and GPU serving are [the roadmap](#the-roadmap).
 
@@ -18,7 +18,7 @@ Five minutes, one row per skill; every link opens a command with its real output
 | Kubernetes platform by GitOps (Argo CD, Helm, Gateway API, cert-manager, secrets, policy) | [The overlays](infra/argocd/clusters/), [the platform on kind](docs/runbooks/aws-track.md#3-kind-with-the-platform), [the EKS render](docs/runbooks/aws-track.md#8-the-eks-overlay-and-ci-c5) | 9 Applications healthy; HTTPS with the lab CA; a secret change in 14 s; EKS overlay 0 invalid |
 | Autoscaling: HPA, KEDA, Karpenter with spot | [HPA](docs/runbooks/aws-track.md#41-hpa-under-load-c10), [KEDA](docs/runbooks/aws-track.md#42-keda-on-an-sqs-queue-c11), [Karpenter](docs/runbooks/aws-track.md#43-karpenter-on-kwok-spot-first-a-reclaim-consolidation-c12) | 1 to 5 pods in 40 s at 899 req/s; 0 to 5 workers; a spot reclaim with 11 of 12 ready |
 | Cost: pricing models and the bill | [The estimate](docs/aws-cost-estimate.md) | 958, 654 and 576 USD a month: on-demand, spot, spot plus commitments |
-| Databases: restore, failover, major upgrade | [PITR](docs/runbooks/aws-track.md#51-point-in-time-restore-c15), [failover](docs/runbooks/aws-track.md#52-failover-c14), [PG 16 to 17](docs/runbooks/aws-track.md#53-major-upgrade-by-logical-replication-c13) | restored to 3 s before a DELETE in 79 s; 30.5 s failover gap; 9.5 s upgrade cutover, checksums equal |
+| Databases: restore, failover, major upgrade | [PITR](docs/runbooks/aws-track.md#51-point-in-time-restore-c15), [failover](docs/runbooks/aws-track.md#52-failover-c14), [PG 16 to 17](docs/runbooks/aws-track.md#53-major-upgrade-by-logical-replication-c13) | RTO 79 s (restored to 3 s before a DELETE), RPO bounded at 60 s by the WAL archive; 30.5 s failover gap; 9.5 s upgrade cutover with zero data lost (checksums equal) |
 | Git flow and CI | [Workflows, rulesets, CODEOWNERS](.github/), [a pull request](https://github.com/caokgit/ocr-platform/pull/1), [a release](https://github.com/caokgit/ocr-platform/releases/tag/v0.3.0) | CI caught two real faults on the first push; both fixed through PR #1 |
 | Observability and releases | [An alert finds a bad release](docs/runbooks/aws-track.md#61-an-alert-finds-a-bad-release-c16), [canary](docs/runbooks/aws-track.md#62-canary-with-analysis-c17) | alert in 1 min 58 s, failures traced in Loki; a faulty build aborted in 37 s |
 
@@ -103,9 +103,9 @@ Each goal is an acceptance criterion, shown on the shared machine with the real 
 
 ## The AWS track
 
-**Not applied to a real AWS account.** RDS and EKS are covered by `terraform test` against a mocked AWS provider; the
-network, identity, keys, storage, queues and secrets are applied for real to LocalStack 4.14; the Kubernetes layer
-runs on kind on a laptop. Every number below comes from a run, in [the runbook](docs/runbooks/aws-track.md); the
+**How it is proven.** RDS and EKS are covered by `terraform test` against a mocked AWS provider; the network,
+identity, keys, storage, queues and secrets are applied to LocalStack 4.14; the Kubernetes layer runs on kind on a
+laptop. No AWS account is used. Every number below comes from a run, in [the runbook](docs/runbooks/aws-track.md); the
 acceptance checks are C1 to C20 of [the spec](docs/specs/aws-track.md#acceptance).
 
 ```mermaid
