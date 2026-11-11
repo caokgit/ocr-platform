@@ -1,0 +1,191 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="862" viewBox="0 0 1500 862" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="1500" height="862" fill="#ffffff"/>
+  <text x="24" y="32" font-size="20" font-weight="bold" fill="#0f172a">The ML platform on the shared GPU machine: six layers, observability across them, one foundation</text>
+
+  <!-- legend -->
+  <g font-size="12" fill="#0f172a">
+    <rect x="24" y="46" width="22" height="14" fill="#f1f5f9" stroke="#334155" stroke-width="2"/><text x="52" y="58">Built and measured</text>
+    <rect x="180" y="46" width="22" height="14" fill="#ffffff" stroke="#334155" stroke-width="2" stroke-dasharray="6 3"/><text x="208" y="58">Planned (its phase in the header)</text>
+    <text x="430" y="58" fill="#475569">"A or B": chosen in that phase's spec.   P = problem, T = outcome (design.md).</text>
+  </g>
+
+  <!-- users -->
+  <g>
+    <rect x="24" y="76" width="380" height="58" rx="8" fill="#eef2ff" stroke="#4f46e5"/>
+    <text x="36" y="97" font-weight="bold" fill="#312e81">AI engineer (the AI team)</text>
+    <text x="36" y="115" fill="#1e1b4b">trains, compares, promotes a model; calls an LLM</text>
+    <text x="36" y="129" fill="#1e1b4b">uses layers 2, 3, 5</text>
+
+    <rect x="420" y="76" width="380" height="58" rx="8" fill="#eef2ff" stroke="#4f46e5"/>
+    <text x="432" y="97" font-weight="bold" fill="#312e81">AI engineer, as the OCR service's owner</text>
+    <text x="432" y="115" fill="#1e1b4b">the service calls the detector and the one LLM endpoint</text>
+    <text x="432" y="129" fill="#1e1b4b">uses layers 4, 5</text>
+
+    <rect x="816" y="76" width="380" height="58" rx="8" fill="#eef2ff" stroke="#4f46e5"/>
+    <text x="828" y="97" font-weight="bold" fill="#312e81">Platform engineer (me)</text>
+    <text x="828" y="115" fill="#1e1b4b">builds and runs it: lab-up, upgrades, alerts, quotas</text>
+    <text x="828" y="129" fill="#1e1b4b">builds every layer; watches it with layer 7</text>
+
+    <rect x="1212" y="76" width="264" height="58" rx="8" fill="#ffffff" stroke="#64748b" stroke-dasharray="3 3"/>
+    <text x="1224" y="97" font-weight="bold" fill="#334155">Agents: studied, not built (D20)</text>
+    <text x="1224" y="115" fill="#334155">a model calling tools in a loop;</text>
+    <text x="1224" y="129" fill="#334155">would use layers 3 to 7</text>
+  </g>
+
+  <!-- column headers and bodies -->
+  <!-- 1 Data: built -->
+  <g>
+    <rect x="24" y="152" width="228" height="398" rx="8" fill="#f0fdfa" stroke="#0d9488" stroke-width="2"/>
+    <text x="36" y="176" font-size="15" font-weight="bold" fill="#134e4a">1. Data</text>
+    <text x="36" y="194" fill="#134e4a">Built, phase 2a</text>
+    <rect x="36" y="206" width="204" height="42" rx="5" fill="#ccfbf1" stroke="#0d9488"/>
+    <text x="44" y="224">Postgres (CloudNativePG)</text><text x="44" y="240">archive, live (replayed)</text>
+    <rect x="36" y="256" width="204" height="42" rx="5" fill="#ccfbf1" stroke="#0d9488"/>
+    <text x="44" y="274">Debezium, Kafka (Strimzi)</text><text x="44" y="290">every change as an event</text>
+    <rect x="36" y="306" width="204" height="42" rx="5" fill="#ccfbf1" stroke="#0d9488"/>
+    <text x="44" y="324">Spark, Iceberg on SeaweedFS</text><text x="44" y="340">versions by snapshot id</text>
+    <rect x="36" y="356" width="204" height="58" rx="5" fill="#ccfbf1" stroke="#0d9488"/>
+    <text x="44" y="374">Gold sets: test split</text><text x="44" y="390">26 of 132 garment specs;</text><text x="44" y="406">200 human picks</text>
+    <text x="36" y="440" font-style="italic" fill="#134e4a">Which exact data did</text>
+    <text x="36" y="456" font-style="italic" fill="#134e4a">this model see?</text>
+    <text x="36" y="486" fill="#134e4a">P2, P4 → T2, T4</text>
+    <text x="36" y="504" fill="#134e4a">edit in silver in 31.7 s</text>
+  </g>
+
+  <!-- 2 Training: planned 2b -->
+  <g>
+    <rect x="265" y="152" width="228" height="398" rx="8" fill="#fff7ed" stroke="#ea580c" stroke-width="2" stroke-dasharray="6 3"/>
+    <text x="277" y="176" font-size="15" font-weight="bold" fill="#7c2d12">2. Training</text>
+    <text x="277" y="194" fill="#7c2d12">Planned, phase 2b</text>
+    <rect x="277" y="206" width="204" height="42" rx="5" fill="#ffedd5" stroke="#ea580c" stroke-dasharray="4 3"/>
+    <text x="285" y="224">One job template:</text><text x="285" y="240">Argo Workflows or Airflow</text>
+    <rect x="277" y="256" width="204" height="42" rx="5" fill="#ffedd5" stroke="#ea580c" stroke-dasharray="4 3"/>
+    <text x="285" y="274">A queue for the GPUs:</text><text x="285" y="290">Kueue or plain quotas</text>
+    <rect x="277" y="306" width="204" height="58" rx="5" fill="#ffedd5" stroke="#ea580c" stroke-dasharray="4 3"/>
+    <text x="285" y="324">A GPU pod: YOLO training</text><text x="285" y="340">on 1 x RTX 3060, from</text><text x="285" y="356">a dataset version</text>
+    <text x="277" y="440" font-style="italic" fill="#7c2d12">Can an AI engineer retrain</text>
+    <text x="277" y="456" font-style="italic" fill="#7c2d12">with one command?</text>
+    <text x="277" y="486" fill="#7c2d12">P1, P7 → T1, T8</text>
+    <text x="277" y="504" fill="#7c2d12">today: by hand in a cloud UI</text>
+  </g>
+
+  <!-- 3 Registry and gate: planned 2b -->
+  <g>
+    <rect x="506" y="152" width="228" height="398" rx="8" fill="#faf5ff" stroke="#9333ea" stroke-width="2" stroke-dasharray="6 3"/>
+    <text x="518" y="176" font-size="15" font-weight="bold" fill="#581c87">3. Registry and gate</text>
+    <text x="518" y="194" fill="#581c87">Planned, phase 2b</text>
+    <rect x="518" y="206" width="204" height="42" rx="5" fill="#f3e8ff" stroke="#9333ea" stroke-dasharray="4 3"/>
+    <text x="526" y="224">MLflow tracking: params,</text><text x="526" y="240">metrics, snapshot id</text>
+    <rect x="518" y="256" width="204" height="42" rx="5" fill="#f3e8ff" stroke="#9333ea" stroke-dasharray="4 3"/>
+    <text x="526" y="274">MLflow registry: versions,</text><text x="526" y="290">@champion: the one in use</text>
+    <rect x="518" y="306" width="204" height="58" rx="5" fill="#f3e8ff" stroke="#9333ea" stroke-dasharray="4 3"/>
+    <text x="526" y="324">The gate: mAP@50, recall</text><text x="526" y="340">on the frozen split; top-1</text><text x="526" y="356">on the human gold set</text>
+    <text x="518" y="440" font-style="italic" fill="#581c87">Is the new model better,</text>
+    <text x="518" y="456" font-style="italic" fill="#581c87">and what made it?</text>
+    <text x="518" y="486" fill="#581c87">P2, P3 → T2, T7</text>
+    <text x="518" y="504" fill="#581c87">today: weights named by file</text>
+  </g>
+
+  <!-- 4 Serving: planned 3a -->
+  <g>
+    <rect x="747" y="152" width="228" height="398" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2" stroke-dasharray="6 3"/>
+    <text x="759" y="176" font-size="15" font-weight="bold" fill="#1e3a8a">4. Serving</text>
+    <text x="759" y="194" fill="#1e3a8a">Planned, phase 3a</text>
+    <rect x="759" y="206" width="204" height="58" rx="5" fill="#dbeafe" stroke="#2563eb" stroke-dasharray="4 3"/>
+    <text x="767" y="224">Triton: the detector as</text><text x="767" y="240">ONNX and TensorRT,</text><text x="767" y="256">FP32, FP16, INT8</text>
+    <rect x="759" y="272" width="204" height="58" rx="5" fill="#dbeafe" stroke="#2563eb" stroke-dasharray="4 3"/>
+    <text x="767" y="290">vLLM: a small vision-</text><text x="767" y="306">language model on</text><text x="767" y="322">1 x RTX 3060 (12 GB)</text>
+    <text x="759" y="440" font-style="italic" fill="#1e3a8a">Is it fast and accurate</text>
+    <text x="759" y="456" font-style="italic" fill="#1e3a8a">enough on our GPU?</text>
+    <text x="759" y="486" fill="#1e3a8a">P5, P6 → T3, T5</text>
+    <text x="759" y="504" fill="#1e3a8a">today: YOLO on CPU, in the</text>
+    <text x="759" y="520" fill="#1e3a8a">OCR container</text>
+  </g>
+
+  <!-- 5 Gateway: planned 3a -->
+  <g>
+    <rect x="988" y="152" width="228" height="398" rx="8" fill="#fdf2f8" stroke="#db2777" stroke-width="2" stroke-dasharray="6 3"/>
+    <text x="1000" y="176" font-size="15" font-weight="bold" fill="#831843">5. Model gateway</text>
+    <text x="1000" y="194" fill="#831843">Planned, phase 3a</text>
+    <rect x="1000" y="206" width="204" height="42" rx="5" fill="#fce7f3" stroke="#db2777" stroke-dasharray="4 3"/>
+    <text x="1008" y="224">One OpenAI-compatible</text><text x="1008" y="240">endpoint, a key per caller</text>
+    <rect x="1000" y="256" width="204" height="42" rx="5" fill="#fce7f3" stroke="#db2777" stroke-dasharray="4 3"/>
+    <text x="1008" y="274">Routes by model name: GPT</text><text x="1008" y="290">(Microsoft Foundry) or vLLM</text>
+    <rect x="1000" y="306" width="204" height="58" rx="5" fill="#fce7f3" stroke="#db2777" stroke-dasharray="4 3"/>
+    <text x="1008" y="324">Records per call: tokens,</text><text x="1008" y="340">cost, the model that</text><text x="1008" y="356">answered</text>
+    <text x="1000" y="440" font-style="italic" fill="#831843">Which model answered,</text>
+    <text x="1000" y="456" font-style="italic" fill="#831843">and at what cost?</text>
+    <text x="1000" y="486" fill="#831843">P3, P5, P7 → T3, T7, T8</text>
+    <text x="1000" y="504" fill="#831843">today: a routing file inside</text>
+    <text x="1000" y="520" fill="#831843">the service</text>
+  </g>
+
+  <!-- 6 Retrieval: planned 3b -->
+  <g>
+    <rect x="1229" y="152" width="247" height="398" rx="8" fill="#fefce8" stroke="#ca8a04" stroke-width="2" stroke-dasharray="6 3"/>
+    <text x="1241" y="176" font-size="15" font-weight="bold" fill="#713f12">6. Retrieval</text>
+    <text x="1241" y="194" fill="#713f12">Planned, phase 3b</text>
+    <rect x="1241" y="206" width="222" height="42" rx="5" fill="#fef9c3" stroke="#ca8a04" stroke-dasharray="4 3"/>
+    <text x="1249" y="224">Embeddings: each crop</text><text x="1249" y="240">as a vector</text>
+    <rect x="1241" y="256" width="222" height="42" rx="5" fill="#fef9c3" stroke="#ca8a04" stroke-dasharray="4 3"/>
+    <text x="1249" y="274">pgvector, an HNSW index,</text><text x="1249" y="290">in the lab's Postgres</text>
+    <rect x="1241" y="306" width="222" height="58" rx="5" fill="#fef9c3" stroke="#ca8a04" stroke-dasharray="4 3"/>
+    <text x="1249" y="324">The nearest crops people</text><text x="1249" y="340">picked before, added to</text><text x="1249" y="356">the model's prompt (RAG)</text>
+    <text x="1241" y="440" font-style="italic" fill="#713f12">Have people picked something</text>
+    <text x="1241" y="456" font-style="italic" fill="#713f12">like this before?</text>
+    <text x="1241" y="486" fill="#713f12">P8 → T9</text>
+    <text x="1241" y="504" fill="#713f12">today: each run starts from</text>
+    <text x="1241" y="520" fill="#713f12">nothing</text>
+  </g>
+
+  <!-- flow arrows between layers -->
+  <g stroke="#334155" stroke-width="2" fill="none" marker-end="url(#arrow)">
+    <line x1="252" y1="400" x2="263" y2="400"/>
+    <line x1="493" y1="400" x2="504" y2="400"/>
+    <line x1="734" y1="400" x2="745" y2="400"/>
+    <line x1="975" y1="400" x2="986" y2="400"/>
+    <line x1="1229" y1="400" x2="1218" y2="400"/>
+  </g>
+  <g font-size="11" fill="#334155">
+    <text x="1241" y="388">← sent by the OCR service in its</text><text x="1241" y="402">   call to layer 5</text>
+  </g>
+
+  <!-- lineage strip -->
+  <g>
+    <rect x="24" y="566" width="1452" height="56" rx="8" fill="#f8fafc" stroke="#334155" stroke-dasharray="6 3"/>
+    <text x="36" y="588" font-weight="bold" fill="#0f172a">The lineage chain, the contract between the layers (T7, planned 2b and 3a; its first id is real):</text>
+    <text x="36" y="610" fill="#0f172a">dataset version (a copy id or an Iceberg snapshot id)  →  training run (commit, image digest, parameters)  →  registry version (weights hash)  →  gate report  →  deployment  →  every response tagged with what made it</text>
+  </g>
+
+  <!-- observability band -->
+  <g>
+    <rect x="24" y="636" width="1452" height="56" rx="8" fill="#f1f5f9" stroke="#475569" stroke-width="2" stroke-dasharray="6 3"/>
+    <text x="36" y="658" font-weight="bold" fill="#1e293b">7. Observability and day 2, planned phase 3c (P9 → T6): across every layer</text>
+    <text x="36" y="680" fill="#1e293b">DCGM GPU metrics, Triton and vLLM metrics, Prometheus and Grafana; SLOs (serving latency, queue wait, job success); alerts proven by drills; the upgrade drill</text>
+  </g>
+
+  <!-- foundation -->
+  <g>
+    <rect x="24" y="706" width="1452" height="110" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
+    <text x="36" y="728" font-weight="bold" fill="#14532d">Foundation, built in phase 1 (2026-10-30)</text>
+    <rect x="36" y="740" width="470" height="62" rx="5" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="46" y="760">The shared machine: 2 x RTX 3060, 12 GB each; 31 GiB RAM</text>
+    <text x="46" y="778">shared with the AI team: 1,629 and 2,780 MiB in use on the</text>
+    <text x="46" y="794">GPUs on 2026-10-25 14:04; both idle on 2026-11-11 16:10</text>
+    <rect x="518" y="740" width="460" height="62" rx="5" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="528" y="760">k3s v1.36.5, one node, runs only during sessions</text>
+    <text x="528" y="778">GPU Operator: the node offers nvidia.com/gpu: 2</text>
+    <text x="528" y="794">(whole GPUs, no sharing between pods)</text>
+    <rect x="990" y="740" width="474" height="62" rx="5" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="1000" y="760">Argo CD installs every layer from the lab's repo (GitOps)</text>
+    <text x="1000" y="778">Ansible owns only the OS layer: lab-up, lab-down,</text>
+    <text x="1000" y="794">teardown</text>
+  </g>
+
+  <text x="24" y="842" font-size="11" fill="#475569">Numbers from the lab: gold sets and the 31.7 s edit (2026-11-01), the machine (2026-10-25, 2026-10-30, 2026-11-11). Everything dashed is PLANNED and is settled in the concept design and its phase spec.</text>
+</svg>

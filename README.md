@@ -26,12 +26,13 @@ Green is built and checked; grey is planned, and each part is published here whe
 - **The system:** an OCR service that reads the garment specification documents a garment manufacturer, my team's
   client, receives from its brand customers, and pre-fills the client's own template for a person to confirm
   ([the use case](docs/use-case.md)).
-- **Who the platform serves:** my team's AI engineers (the AI team), who train the detector and own the prompts, and
-  the engineers whose services call the OCR.
+- **Who the platform serves:** my team's AI engineers (the AI team), who train the detector, own the prompts, and
+  build and run the OCR service that calls the models.
 - **Where it runs:** one Ubuntu machine with two RTX 3060 GPUs, shared with the AI team, on the client's real data.
 - **Built:** the GPU cluster, run by GitOps; the versioned data path; and [the same platform on AWS](#the-aws-track),
   proven without an AWS account.
-- **Next:** training, the gate, serving, retrieval and observability ([the roadmap](#the-roadmap)).
+- **Next:** training, the gate, serving, retrieval and observability, designed as one platform in
+  [the concept design](docs/specs/ml-platform.md) ([the roadmap](#the-roadmap)).
 
 I am a cloud, DevOps and data platform engineer at the same company. I built and run this lab, and every step is
 checked against acceptance criteria with real output.
@@ -60,15 +61,16 @@ client's. [The use case](docs/use-case.md) follows one document through the syst
 **The lab builds one platform that takes a versioned dataset to a model that is gated, served and observed, for the
 engineers who build the models, and measures every step against today's system.** Each outcome is an acceptance criterion, shown on the
 shared machine with the real data. Its metric, today's baseline and its target, fixed before the run and never after,
-are in [the design](docs/design.md#outcomes).
+are in [the design](docs/design.md#outcomes); how each layer of the platform reaches them is in
+[the concept design](docs/specs/ml-platform.md#the-one-idea).
 
 | # | Outcome | Solves | Phase | Status |
 |---|---|---|---|---|
-| T1 | Reproducible detector training: the production recipe reproduced within a stated tolerance; a rerun gives the same numbers | P1 | 2b | Planned |
+| T1 | Reproducible detector training: the production weights' mAP@50 on the test split reproduced within 0.02; a rerun within 0.005 | P1 | 2b | Planned |
 | T2 | Gold sets and a scoreboard: a test split frozen by document, a human gold set, one table of every model version's scores, each with its interval | P2 | 2a, 2b | **Half done:** the test split (26 of 132 documents, 341 pages) and the gold set (200 human picks), 2026-11-01 |
 | T3 | Fewer GPT calls: a self-hosted vision-language model behind the gateway answers a share of the elements at equal top-1 on the gold set | P5 | 3a | Planned |
-| T4 | Versioned datasets from a CDC path: a replayed edit in the lakehouse within 60 s with no polling; a training run rebuilt from its dataset version | P4 | 2a, 2b | **Half done:** the slowest of 10 edits in 31.7 s, nothing polling (2026-11-01) |
-| T5 | GPU serving with measured trade-offs: accuracy, latency and throughput per precision (FP32, FP16, INT8), against today's CPU | P6 | 3a | Planned |
+| T4 | Versioned datasets from a CDC path: a replayed edit in the lakehouse within 60 s with no polling; a gate report rebuilt from the gold set's version | P4 | 2a, 3a | **Half done:** the slowest of 10 edits in 31.7 s, nothing polling (2026-11-01) |
+| T5 | GPU serving with measured trade-offs: accuracy, latency and throughput per precision (FP32, FP16, INT8), against today's CPU; against FP32, at most 0.005 of mAP@50 and recall lost at FP16, 0.02 at INT8 | P6 | 3a | Planned |
 | T6 | Serving and GPU observability: SLOs for serving and training, each alert proven by a drill | P9 | 3c | Planned |
 | T7 | One gate and full lineage: a deliberately worse model and a worse prompt both blocked; every output names its weights, prompt and deployment | P3 | 2b, 3a | Planned |
 | T8 | Self-service training and serving: one command per task for an AI engineer; a second GPU job waits in its queue within its quota | P7 | 2b, 3a | Planned |
@@ -226,19 +228,20 @@ internal addresses masked, and the AI team's firewall rules elided; everything e
 
 ## The roadmap
 
-Phases 1 and 2a and the AWS track are built, with the evidence above. Next, the design of the whole platform is
-published first: its users and their interfaces, every layer marked built or planned, the lineage chain from a
-dataset version to each response, and the plan for sharing two 12 GB GPUs with the AI team. Then each phase below is
-built on the shared machine and published here when its acceptance checks pass.
+Phases 1 and 2a and the AWS track are built, with the evidence above. The design of the whole platform is published
+before the rest is built: [the concept design](docs/specs/ml-platform.md) shows its users and their interfaces, every
+layer marked built or planned, [the lineage chain](docs/specs/ml-platform.md#the-lineage-chain) from a dataset version
+to each response, and [the plan](docs/specs/ml-platform.md#the-box-plan) for sharing two 12 GB GPUs with the AI team.
+Each phase below is then built on the shared machine and published here when its acceptance checks pass.
 
 | Phase | Builds | Outcomes |
 |---|---|---|
-| 2b, the training platform | One job template an AI engineer submits with a dataset version and a recipe; GPU queueing and quotas on the two GPUs; namespaces with RBAC and NetworkPolicy; MLflow tracking and registry; the detector's production recipe reproduced; one promotion gate on the frozen test split; lineage from the dataset version to the weights. The orchestrator, Argo Workflows or Airflow, is chosen in its spec | T1, T2's scoreboard, T4's second half, T7, T8 |
-| 3a, model serving | The detector on NVIDIA Triton: ONNX, then TensorRT FP32, FP16 and INT8, against today's CPU. A small open vision-language model on vLLM, on one RTX 3060. One OpenAI-compatible gateway in front of the GPT deployments and vLLM: models switched by configuration, usage and cost per key, the answering model recorded | T3, T5, T7, T8 |
+| 2b, the training platform | One job template an AI engineer submits with a dataset version and a recipe; GPU queueing and quotas on the two GPUs; namespaces with RBAC and NetworkPolicy; MLflow tracking and registry; the detector's production recipe reproduced; one promotion gate on the frozen test split; lineage from the dataset version to the weights. The orchestrator, Argo Workflows or Airflow, is chosen in its spec | T1, T2's scoreboard, T7, T8 |
+| 3a, model serving | The detector on NVIDIA Triton: ONNX, then TensorRT FP32, FP16 and INT8, against today's CPU. A small open vision-language model on vLLM, on one RTX 3060. One OpenAI-compatible gateway in front of the GPT deployments and vLLM: models switched by configuration, usage and cost per key, the answering model recorded | T3, T4's second half (a gate report rebuilt from the gold set's version), T5, T7, T8 |
 | 3b, retrieval | Crop and element embeddings in pgvector on the lab's existing Postgres; the nearest human-picked crops retrieved as context for the model (RAG on the OCR's own data) | T9 |
 | 3c, observability and day 2 | GPU metrics (DCGM), Triton and vLLM metrics, the platform's SLOs, GPU use per namespace; drills of a bad model, a full GPU and a stuck queue; an upgrade drill (k3s, the GPU Operator, a Helm rollback) | T6 |
 
-Not scheduled: KEDA scaling on Kafka; a student ranker distilled from GPT's scores, grown by active learning; the AWS
+Extended work, not scheduled: KEDA scaling on Kafka; a student ranker distilled from GPT's scores, grown by active learning; the AWS
 track applied to a real account (`envs/dev` with its S3 state bucket, then the eks overlay).
 
 ## Where to read next
@@ -246,8 +249,9 @@ track applied to a real account (`envs/dev` with its S3 state bucket, then the e
 1. [The use case](docs/use-case.md): the workload, one document through it, and its gaps.
 2. [How I work](docs/how-i-work.md): the method, and three errors it caught.
 3. [The design notes](docs/notes/README.md): nine engineering questions the lab settled, each with its real values.
-4. [The design](docs/design.md): each outcome's metric, baseline and target, then each decision with its why; and the
-   specs, [phase 1's platform](docs/specs/gpu-box-platform.md) and [phase 2a's data path](docs/specs/data-path.md),
+4. [The design](docs/design.md): each outcome's metric, baseline and target, then each decision with its why;
+   [the concept design](docs/specs/ml-platform.md) of the whole platform; and the specs,
+   [phase 1's platform](docs/specs/gpu-box-platform.md) and [phase 2a's data path](docs/specs/data-path.md),
    with their acceptance checks as worded and as run.
 5. [The runbooks](docs/runbooks/README.md): the whole journey, from a fresh laptop to a running lab and back to a
    clean machine, each command with its real output.
