@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1140" height="660" viewBox="0 0 1140 660" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13">
+<rect x="0" y="0" width="1140" height="660" fill="#ffffff"/>
+<text x="24" y="34" font-size="20" font-weight="bold" fill="#0f172a">The box plan: one lab GPU job at a time, sized beside the AI team's heaviest use</text>
+<text x="24" y="56" fill="#475569">Every bar is one RTX 3060, 12,288 MiB, drawn to scale. Solid: measured (REAL). Dashed: the lab's budget (PLANNED). Values in MiB.</text>
+<text x="24" y="96" font-size="15" font-weight="bold" fill="#9a3412">1. What the AI team used (REAL, nvidia-smi)</text>
+<text x="60" y="127" fill="#0f172a">GPU 0, 2026-10-25 14:04</text>
+<rect x="260" y="112" width="800" height="22" fill="#f8fafc" stroke="#94a3b8"/>
+<rect x="260" y="112" width="106.1" height="22" fill="#f97316"/>
+<text x="374.1" y="128" fill="#9a3412">1,629 MiB, 8% busy</text>
+<text x="60" y="159" fill="#0f172a">GPU 1, 2026-10-25 14:04</text>
+<rect x="260" y="144" width="800" height="22" fill="#f8fafc" stroke="#94a3b8"/>
+<rect x="260" y="144" width="181.0" height="22" fill="#f97316"/>
+<text x="449.0" y="160" fill="#9a3412">2,780 MiB, 99% busy</text>
+<text x="60" y="191" fill="#0f172a">GPU 0, 2026-11-11 16:10</text>
+<rect x="260" y="176" width="800" height="22" fill="#f8fafc" stroke="#94a3b8"/>
+<rect x="260" y="176" width="3.0" height="22" fill="#f97316"/>
+<text x="271.0" y="192" fill="#9a3412">36 MiB, idle (graphics only)</text>
+<text x="60" y="223" fill="#0f172a">GPU 1, 2026-11-11 16:10</text>
+<rect x="260" y="208" width="800" height="22" fill="#f8fafc" stroke="#94a3b8"/>
+<rect x="260" y="208" width="3.0" height="22" fill="#f97316"/>
+<text x="271.0" y="224" fill="#9a3412">15 MiB, idle (graphics only)</text>
+<text x="60" y="252" fill="#475569">Their containers claim all GPUs, so either card can be the busy one; Kubernetes does not see them.</text>
+<text x="24" y="292" font-size="15" font-weight="bold" fill="#1e3a8a">2. The lab's card, at the heaviest reading (PLANNED: vLLM with --gpu-memory-utilization 0.70)</text>
+<rect x="60" y="310" width="1000" height="46" fill="#f8fafc" stroke="#334155" stroke-width="1.5"/>
+<rect x="60.0" y="310" width="226.2" height="46" fill="#f97316"/>
+<text x="173.1" y="330" text-anchor="middle" fill="#ffffff" font-weight="bold">AI team</text>
+<text x="173.1" y="347" text-anchor="middle" fill="#ffffff">2,780</text>
+<rect x="286.2" y="310" width="406.9" height="46" fill="#1d4ed8" stroke="#1e3a8a" stroke-dasharray="6 3"/>
+<text x="489.7" y="330" text-anchor="middle" fill="#ffffff" font-weight="bold">VLM weights</text>
+<text x="489.7" y="347" text-anchor="middle" fill="#ffffff">about 5,000</text>
+<rect x="693.1" y="310" width="101.7" height="46" fill="#60a5fa" stroke="#1e3a8a" stroke-dasharray="6 3"/>
+<text x="744.0" y="330" text-anchor="middle" fill="#0f172a" font-weight="bold" font-size="11">activations</text>
+<text x="744.0" y="347" text-anchor="middle" fill="#0f172a" font-size="11">1,000-1,500</text>
+<rect x="794.9" y="310" width="191.4" height="46" fill="#bfdbfe" stroke="#1e3a8a" stroke-dasharray="6 3"/>
+<text x="890.6" y="330" text-anchor="middle" fill="#0f172a" font-weight="bold">KV cache</text>
+<text x="890.6" y="347" text-anchor="middle" fill="#0f172a">2,100-2,600</text>
+<rect x="986.3" y="310" width="73.7" height="46" fill="#e2e8f0"/>
+<text x="1023.1" y="330" text-anchor="middle" fill="#334155" font-weight="bold" font-size="11">margin</text>
+<text x="1023.1" y="347" text-anchor="middle" fill="#334155" font-size="11">906</text>
+<path d="M286.2,364 v8 H986.3 v-8" fill="none" stroke="#1e3a8a" stroke-width="1.5"/>
+<text x="636.3" y="388" text-anchor="middle" fill="#1e3a8a" font-weight="bold">vLLM's share: 0.70 x 12,288 = 8,602 MiB</text>
+<rect x="286.2" y="406" width="800.0" height="20" fill="none" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="5 3"/>
+<rect x="1060.0" y="406" width="26.2" height="20" fill="#fecaca"/>
+<text x="294.2" y="421" fill="#b91c1c">0.80 would be 9,830 MiB: 322 MiB more than the 9,508 free, so vLLM would refuse to start</text>
+<line x1="60" y1="450" x2="1060" y2="450" stroke="#334155"/>
+<line x1="60.0" y1="450" x2="60.0" y2="455" stroke="#334155"/>
+<text x="60.0" y="470" text-anchor="middle" fill="#475569" font-size="11">0</text>
+<line x1="226.7" y1="450" x2="226.7" y2="455" stroke="#334155"/>
+<text x="226.7" y="470" text-anchor="middle" fill="#475569" font-size="11">2,048</text>
+<line x1="393.3" y1="450" x2="393.3" y2="455" stroke="#334155"/>
+<text x="393.3" y="470" text-anchor="middle" fill="#475569" font-size="11">4,096</text>
+<line x1="560.0" y1="450" x2="560.0" y2="455" stroke="#334155"/>
+<text x="560.0" y="470" text-anchor="middle" fill="#475569" font-size="11">6,144</text>
+<line x1="726.7" y1="450" x2="726.7" y2="455" stroke="#334155"/>
+<text x="726.7" y="470" text-anchor="middle" fill="#475569" font-size="11">8,192</text>
+<line x1="893.3" y1="450" x2="893.3" y2="455" stroke="#334155"/>
+<text x="893.3" y="470" text-anchor="middle" fill="#475569" font-size="11">10,240</text>
+<line x1="1060.0" y1="450" x2="1060.0" y2="455" stroke="#334155"/>
+<text x="1060.0" y="470" text-anchor="middle" fill="#475569" font-size="11">12,288</text>
+<text x="60" y="486" fill="#475569" font-size="11">MiB on the card</text>
+<text x="24" y="516" font-size="15" font-weight="bold" fill="#0f172a">3. One lab GPU job at a time, each after a nvidia-smi check</text>
+<rect x="60" y="532" width="300" height="62" rx="8" fill="#ffffff" stroke="#1e3a8a" stroke-dasharray="6 3"/>
+<text x="72" y="553" font-weight="bold" fill="#1e3a8a">2b training</text>
+<text x="72" y="571" fill="#0f172a">YOLO nano, 640 px, batch 8;</text>
+<text x="72" y="587" fill="#0f172a">measured on the first run</text>
+<rect x="410" y="532" width="300" height="62" rx="8" fill="#ffffff" stroke="#1e3a8a" stroke-dasharray="6 3"/>
+<text x="422" y="553" font-weight="bold" fill="#1e3a8a">3a Triton</text>
+<text x="422" y="571" fill="#0f172a">the detector per precision;</text>
+<text x="422" y="587" fill="#0f172a">on demand while measuring</text>
+<text x="384" y="569" font-size="16" fill="#334155">or</text>
+<rect x="760" y="532" width="300" height="62" rx="8" fill="#ffffff" stroke="#1e3a8a" stroke-dasharray="6 3"/>
+<text x="772" y="553" font-weight="bold" fill="#1e3a8a">3a, 3b vLLM</text>
+<text x="772" y="571" fill="#0f172a">the VLM at 0.70;</text>
+<text x="772" y="587" fill="#0f172a">never while training runs</text>
+<text x="734" y="569" font-size="16" fill="#334155">or</text>
+<text x="24" y="624" fill="#475569" font-size="11">Weights and activations: rough figures for a 4B VLM with FP8 weights; 3a measures them. How the lab is held to one card: the 2b spec.</text>
+</svg>

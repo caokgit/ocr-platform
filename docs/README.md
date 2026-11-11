@@ -15,6 +15,7 @@ here to find a page.
 | Page | What it holds |
 |---|---|
 | [design.md](design.md) | Context, target outcomes, decisions (D#), open decisions, what was verified |
+| [specs/ml-platform.md](specs/ml-platform.md) | The concept design of the whole platform: its users and interfaces, every layer built or planned, the lineage chain, the plan for the two GPUs, acceptance by phase |
 | [specs/gpu-box-platform.md](specs/gpu-box-platform.md) | Spec, phase 1: k3s, the GPU Operator and Argo CD on the shared machine next to the AI team's Docker; lab-up, lab-down, teardown, acceptance A1 to A11 |
 | [specs/data-path.md](specs/data-path.md) | Spec, phase 2a: snapshot, replay, CDC, Kafka, Iceberg on SeaweedFS, gold sets; acceptance B1 to B16 |
 | [specs/aws-track.md](specs/aws-track.md) | Spec, the AWS track: Terraform for AWS (LocalStack and a mocked apply), the kind and EKS overlays, the operations drills; acceptance C1 to C20 |

@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="580" viewBox="0 0 1400 580" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12">
+<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker></defs>
+<rect x="0" y="0" width="1400" height="580" fill="#ffffff"/>
+<text x="24" y="34" font-size="20" font-weight="bold" fill="#0f172a">The lineage chain: every layer records the id it received and the id it made</text>
+<rect x="24" y="48" width="22" height="14" fill="#dcfce7" stroke="#15803d"/><text x="52" y="60" fill="#0f172a">Built, its id real</text><rect x="180" y="48" width="22" height="14" fill="#ffffff" stroke="#334155" stroke-dasharray="6 3"/><text x="208" y="60" fill="#0f172a">Planned (its phase)</text><text x="370" y="60" fill="#475569">Two roots: the detector learns from the AI team's labelled pages; the GenAI steps are judged on the client's human picks.</text>
+<text x="24" y="100" font-size="15" font-weight="bold" fill="#1e3a8a">The detector (phases 2b and 3a)</text>
+<rect x="24" y="112" width="200" height="140" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
+<text x="34" y="131" font-weight="bold" fill="#0f172a">Detector dataset copy</text>
+<text x="34" y="150" fill="#1e293b" font-family="Consolas, Menlo, monospace" font-size="11.5">2026-09-24-4a208a33d4ca</text>
+<text x="34" y="166" fill="#1e293b">the AI team's 2,040 pages;</text>
+<text x="34" y="182" fill="#1e293b">test split: 26 garment specs,</text>
+<text x="34" y="198" fill="#1e293b">341 pages (2026-11-01)</text>
+<text x="34" y="243" fill="#64748b" font-size="11">1 Data, built</text>
+<rect x="254" y="112" width="200" height="140" rx="8" fill="#ffffff" stroke="#334155" stroke-width="1.5" stroke-dasharray="6 3"/>
+<text x="264" y="131" font-weight="bold" fill="#0f172a">MLflow run</text>
+<text x="264" y="150" fill="#1e293b">records the dataset id,</text>
+<text x="264" y="166" fill="#1e293b">the commit, the image digest,</text>
+<text x="264" y="182" fill="#1e293b">the parameters</text>
+<text x="264" y="198" fill="#1e293b">makes: a run id</text>
+<text x="264" y="243" fill="#64748b" font-size="11">2 Training, 2b</text>
+<line x1="224" y1="182.0" x2="252" y2="182.0" stroke="#334155" stroke-width="1.5" marker-end="url(#ar)"/>
+<rect x="484" y="112" width="200" height="140" rx="8" fill="#ffffff" stroke="#334155" stroke-width="1.5" stroke-dasharray="6 3"/>
+<text x="494" y="131" font-weight="bold" fill="#0f172a">region-detector version N</text>
+<text x="494" y="150" fill="#1e293b">records the run id</text>
+<text x="494" y="166" fill="#1e293b">makes: the weights' hash</text>
+<text x="494" y="182" fill="#1e293b">and the version number</text>
+<text x="494" y="243" fill="#64748b" font-size="11">3 Registry, 2b</text>
+<line x1="454" y1="182.0" x2="482" y2="182.0" stroke="#334155" stroke-width="1.5" marker-end="url(#ar)"/>
+<rect x="714" y="112" width="200" height="140" rx="8" fill="#ffffff" stroke="#334155" stroke-width="1.5" stroke-dasharray="6 3"/>
+<text x="724" y="131" font-weight="bold" fill="#0f172a">Gate report</text>
+<text x="724" y="150" fill="#1e293b">version N against @champion</text>
+<text x="724" y="166" fill="#1e293b">on the test split:</text>
+<text x="724" y="182" fill="#1e293b">mAP@50 and recall,</text>
+<text x="724" y="198" fill="#1e293b">passed or failed</text>
+<text x="724" y="243" fill="#64748b" font-size="11">3 Gate, 2b</text>
+<line x1="684" y1="182.0" x2="712" y2="182.0" stroke="#334155" stroke-width="1.5" marker-end="url(#ar)"/>
+<rect x="944" y="112" width="200" height="140" rx="8" fill="#ffffff" stroke="#334155" stroke-width="1.5" stroke-dasharray="6 3"/>
+<text x="954" y="131" font-weight="bold" fill="#0f172a">Triton deployment</text>
+<text x="954" y="150" fill="#1e293b">loads</text>
+<text x="954" y="166" fill="#1e293b" font-family="Consolas, Menlo, monospace" font-size="11.5">models:/region-detector</text>
+<text x="954" y="182" fill="#1e293b" font-family="Consolas, Menlo, monospace" font-size="11.5">@champion</text>
+<text x="954" y="198" fill="#1e293b">records version N</text>
+<text x="954" y="243" fill="#64748b" font-size="11">4 Serving, 3a</text>
+<line x1="914" y1="182.0" x2="942" y2="182.0" stroke="#334155" stroke-width="1.5" marker-end="url(#ar)"/>
+<rect x="1174" y="112" width="200" height="140" rx="8" fill="#ffffff" stroke="#334155" stroke-width="1.5" stroke-dasharray="6 3"/>
+<text x="1184" y="131" font-weight="bold" fill="#0f172a">Each response</text>
+<text x="1184" y="150" fill="#1e293b">tagged "detector</text>
+<text x="1184" y="166" fill="#1e293b">version N": walks back</text>
+<text x="1184" y="182" fill="#1e293b">to the dataset copy</text>
+<text x="1184" y="243" fill="#64748b" font-size="11">4 Serving, 3a</text>
+<line x1="1144" y1="182.0" x2="1172" y2="182.0" stroke="#334155" stroke-width="1.5" marker-end="url(#ar)"/>
+<text x="24" y="296" font-size="15" font-weight="bold" fill="#7c2d12">The GenAI steps (phases 3a and 3b)</text>
+<rect x="24" y="308" width="200" height="200" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
+<text x="34" y="327" font-weight="bold" fill="#0f172a">Copy of the client's tables</text>
+<text x="34" y="346" fill="#1e293b" font-family="Consolas, Menlo, monospace" font-size="11.5">2026-11-01-ffcc03c52aea</text>
+<text x="34" y="362" fill="#1e293b">two databases in each of</text>
+<text x="34" y="378" fill="#1e293b">two environments:</text>
+<text x="34" y="394" fill="#1e293b">28 tables, 239,880 rows</text>
+<text x="34" y="499" fill="#64748b" font-size="11">1 Data, built</text>
+<rect x="254" y="308" width="200" height="200" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
+<text x="264" y="327" font-weight="bold" fill="#0f172a">Silver (Iceberg)</text>
+<text x="264" y="346" fill="#1e293b">the copy replayed by CDC:</text>
+<text x="264" y="362" fill="#1e293b">every edit an event,</text>
+<text x="264" y="378" fill="#1e293b">each table versioned by</text>
+<text x="264" y="394" fill="#1e293b">snapshot id (2026-11-01)</text>
+<text x="264" y="499" fill="#64748b" font-size="11">1 Data, built</text>
+<line x1="224" y1="408.0" x2="252" y2="408.0" stroke="#334155" stroke-width="1.5" marker-end="url(#ar)"/>
+<rect x="484" y="308" width="200" height="200" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
+<text x="494" y="327" font-weight="bold" fill="#0f172a">gold.human_picks</text>
+<text x="494" y="346" fill="#1e293b">snapshot</text>
+<text x="494" y="362" fill="#1e293b" font-family="Consolas, Menlo, monospace" font-size="11.5">4822107291937725850</text>
+<text x="494" y="378" fill="#1e293b">200 picks; records the</text>
+<text x="494" y="394" fill="#1e293b">silver snapshots it read</text>
+<text x="494" y="410" fill="#1e293b">(B10, 2026-11-01)</text>
+<text x="494" y="499" fill="#64748b" font-size="11">1 Data, built</text>
+<line x1="454" y1="408.0" x2="482" y2="408.0" stroke="#334155" stroke-width="1.5" marker-end="url(#ar)"/>
+<rect x="714" y="308" width="200" height="98" rx="8" fill="#ffffff" stroke="#334155" stroke-width="1.5" stroke-dasharray="6 3"/>
+<text x="724" y="327" font-weight="bold" fill="#0f172a">Gate report</text>
+<text x="724" y="346" fill="#1e293b">a VLM, prompt or deployment</text>
+<text x="724" y="362" fill="#1e293b">against today's GPT:</text>
+<text x="724" y="378" fill="#1e293b">top-1 on the 200 picks</text>
+<text x="724" y="397" fill="#64748b" font-size="11">3 Gate, 3a</text>
+<rect x="714" y="410" width="200" height="98" rx="8" fill="#ffffff" stroke="#334155" stroke-width="1.5" stroke-dasharray="6 3"/>
+<text x="724" y="429" font-weight="bold" fill="#0f172a">Retrieval index</text>
+<text x="724" y="448" fill="#1e293b">pgvector, built from</text>
+<text x="724" y="464" fill="#1e293b">that snapshot id</text>
+<text x="724" y="480" fill="#1e293b">(own document left out)</text>
+<text x="724" y="499" fill="#64748b" font-size="11">6 Retrieval, 3b</text>
+<path d="M684,408.0 H699 V357.0 H712" fill="none" stroke="#334155" stroke-width="1.5" marker-end="url(#ar)"/>
+<path d="M699,408.0 V459.0 H712" fill="none" stroke="#334155" stroke-width="1.5" marker-end="url(#ar)"/>
+<rect x="944" y="308" width="200" height="200" rx="8" fill="#ffffff" stroke="#334155" stroke-width="1.5" stroke-dasharray="6 3"/>
+<text x="954" y="327" font-weight="bold" fill="#0f172a">Each gateway call</text>
+<text x="954" y="346" fill="#1e293b">records the prompt hash,</text>
+<text x="954" y="362" fill="#1e293b">the model name, the</text>
+<text x="954" y="378" fill="#1e293b">deployment that answered,</text>
+<text x="954" y="394" fill="#1e293b">the cost, the pick ids</text>
+<text x="954" y="499" fill="#64748b" font-size="11">5 Gateway, 3a</text>
+<path d="M914,357.0 H929 V408.0 H942" fill="none" stroke="#334155" stroke-width="1.5" marker-end="url(#ar)"/>
+<path d="M914,459.0 H929 V408.0" fill="none" stroke="#334155" stroke-width="1.5"/>
+<rect x="1174" y="308" width="200" height="200" rx="8" fill="#fff7ed" stroke="#c2410c"/>
+<text x="1184" y="330" fill="#7c2d12" font-weight="bold">T4, measured in 3a:</text>
+<text x="1184" y="347" fill="#7c2d12">the gate report rebuilt</text>
+<text x="1184" y="364" fill="#7c2d12">from the gold snapshot id</text>
+<text x="1184" y="381" fill="#7c2d12">gives the same numbers;</text>
+<text x="1184" y="398" fill="#7c2d12">the id's real consumer</text>
+<text x="24" y="542" fill="#475569">Why two roots: the detector dataset is a copy of the AI team's Ultralytics dataset (data-path decision 20); the gold set is built from the client's tables through silver (decision 19).</text>
+<text x="24" y="562" fill="#475569">The ids that exist today are the green ones; each later phase turns one dashed box green with its real id.</text>
+</svg>
