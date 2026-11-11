@@ -57,8 +57,8 @@ client's. [The use case](docs/use-case.md) follows one document through the syst
 
 ## Outcomes
 
-**The lab builds one platform that takes a versioned dataset to a model that is gated, served and observed, for the engineers who build
-the models, and measures every step against today's system.** Each outcome is an acceptance criterion, shown on the
+**The lab builds one platform that takes a versioned dataset to a model that is gated, served and observed, for the
+engineers who build the models, and measures every step against today's system.** Each outcome is an acceptance criterion, shown on the
 shared machine with the real data. Its metric, today's baseline and its target, fixed before the run and never after,
 are in [the design](docs/design.md#outcomes).
 
@@ -84,60 +84,95 @@ Five minutes, one row per skill; every row links its proof, most of them a comma
 | A data platform for ML: CDC into a lakehouse (Postgres, Debezium, Kafka, Spark, Iceberg) | [The data path spec](docs/specs/data-path.md), [its acceptance](docs/runbooks/data-path.md#verify-end-to-end) | 245,221 writes replayed in 601 s; Debezium lag p99 1.19 s; an edit in silver in 31.7 s; 0 duplicates in 245,234 events |
 | AWS infrastructure in Terraform (VPC, IAM, KMS, S3, RDS, EKS) | [Modules and tests](infra/aws/terraform/modules/), [the checks](docs/runbooks/aws-track.md#21-every-check-that-needs-no-account), [the LocalStack apply](docs/runbooks/aws-track.md#22-apply-to-localstack) | 21 tests against a mocked AWS; 71 resources applied, replan clean, destroy clean |
 | Kubernetes platform by GitOps (Argo CD, Helm, Gateway API, cert-manager, secrets, policy) | [The overlays](infra/argocd/clusters/), [the platform on kind](docs/runbooks/aws-track.md#3-kind-with-the-platform), [the EKS render](docs/runbooks/aws-track.md#8-the-eks-overlay-and-ci-c5) | 9 Applications healthy; HTTPS with the lab CA; a secret change in 14 s; EKS overlay 0 invalid |
-| Autoscaling: HPA, KEDA, Karpenter with spot | [HPA](docs/runbooks/aws-track.md#41-hpa-under-load-c10), [KEDA](docs/runbooks/aws-track.md#42-keda-on-an-sqs-queue-c11), [Karpenter](docs/runbooks/aws-track.md#43-karpenter-on-kwok-spot-first-a-reclaim-consolidation-c12) | 1 to 5 pods in 40 s at 899 req/s; 0 to 5 workers; a spot reclaim with 11 of 12 ready |
+| Autoscaling: HPA, KEDA, Karpenter with spot | [HPA](docs/runbooks/aws-track.md#41-hpa-under-load-c10), [KEDA](docs/runbooks/aws-track.md#42-keda-on-an-sqs-queue-c11), [Karpenter](docs/runbooks/aws-track.md#43-karpenter-on-kwok-spot-first-a-reclaim-consolidation-c12) | 1 to 5 pods in 40 s (decided at 33 s) at 899 req/s, p95 106 ms, 0 failed of 211,658; 0 to 5 workers in 31 s; a spot reclaim with 11 of 12 ready |
 | Cost: pricing models and the bill | [The estimate](docs/aws-cost-estimate.md) | 958, 654 and 576 USD a month: on-demand, spot, spot plus commitments |
 | Databases: restore, failover, major upgrade | [PITR](docs/runbooks/aws-track.md#51-point-in-time-restore-c15), [failover](docs/runbooks/aws-track.md#52-failover-c14), [PG 16 to 17](docs/runbooks/aws-track.md#53-major-upgrade-by-logical-replication-c13) | RTO 79 s (restored to 3 s before a DELETE), RPO bounded at 60 s by the WAL archive; 30.5 s failover gap; 9.5 s upgrade cutover with zero data lost (checksums equal) |
 | Git flow and CI | [Workflows, rulesets, CODEOWNERS](.github/), [a pull request](https://github.com/caokgit/ocr-platform/pull/1), [a release](https://github.com/caokgit/ocr-platform/releases/tag/v0.3.0) | CI caught two real faults on the first push; both fixed through PR #1 |
-| Observability and releases | [An alert finds a bad release](docs/runbooks/aws-track.md#61-an-alert-finds-a-bad-release-c16), [canary](docs/runbooks/aws-track.md#62-canary-with-analysis-c17) | alert in 1 min 58 s, failures traced in Loki; a faulty build aborted in 37 s |
+| Observability and releases | [An alert finds a bad release](docs/runbooks/aws-track.md#61-an-alert-finds-a-bad-release-c16), [canary](docs/runbooks/aws-track.md#62-canary-with-analysis-c17) | Alert in 1 min 58 s, failures traced in Loki; a faulty build aborted in 37 s |
 
 ## Built so far
 
-**Phase 1, the platform** (acceptance A1 to A11, [the table](docs/runbooks/gpu-box-bootstrap.md#8-acceptance)):
+Two phases on the shared machine, each closed by its acceptance checks. Every number below comes from a run, with its
+output in the runbooks.
 
-- A single-node k3s v1.36.5 cluster next to the AI team's Docker workloads, running only during lab sessions,
-  started and stopped by two playbooks: `lab-up` in 17 to 19 s and `lab-down` in 12 to 13 s, with every leftover counted 0
-  (phase 1's figures; with the data path, `lab-up` takes 3 min 16 s).
-- Ansible installs k3s, and k3s installs Argo CD from a file; from then on Argo CD installs the cluster's services from
-  the lab's repo, first the NVIDIA GPU Operator on the machine's own driver: both RTX 3060s schedulable, a CUDA test pod at
-  7,193 GFLOP/s.
-- The shared machine protected: the AI team's containers, configs and firewall chains unchanged; the cluster's API and
-  kubelet ports (6443, 10250) closed, tested from a laptop on the office VPN; 76 MB used on `/` (the root disk was 98% full); every addition listed
-  with its removal in a teardown playbook.
+### Phase 1: GPU Kubernetes beside the AI team's work
 
-**Phase 2a, the data path** (acceptance B1 to B16, [the table](docs/runbooks/data-path.md#verify-end-to-end)):
+**A k3s v1.36.5 cluster that exists only while the lab works, installed beside the AI team's Docker workloads without
+changing them** (acceptance A1 to A11, [the table](docs/runbooks/gpu-box-bootstrap.md#8-acceptance)).
 
-- The client's OCR tables copied once, read-only, through a SELECT per table that leaves people's columns behind:
-  239,880 rows, 28 tables across the two environments; no column naming a person, and no copied row holding a user's
-  name (0 found).
-- Six Argo CD applications, all healthy in 3 min 17 s: four operators (CloudNativePG with Postgres 17.11, Strimzi with
-  Kafka 4.3.1 and 30 topics, Debezium, Kubeflow Spark), SeaweedFS as the S3 store, and the lab's own objects.
-- The lab never puts a replication slot on the client's database
-  ([why](docs/notes/wal-slot-debezium.md#decision-1-no-slot-on-a-shared-database)), so it captures changes from its
-  own: a replayer rewrote 86.8 days of the client's history from the frozen copy (`archive`) into a second database
-  (`live`) in time order: 245,221 writes in 601 s, more than the 239,880 rows because each row's past versions are
-  written before its current one. Debezium reads `live`'s write-ahead log (WAL) through a replication slot and sends
-  each change to Kafka, with a lag p99 of 1.19 s; Spark 4.1.4 streams the changes into Iceberg tables: bronze keeps
-  every event as it arrived, silver the current state of each row. Silver equals the copy for all 28 table and
-  environment pairs, 239,880 rows.
-- **T4, first half:** ten replayed saves of one result each reached silver within 31.7 s of their commit (the limit
-  is 60 s). Around a second slice of 3 saves, Postgres's statement statistics showed only the replayer's writes and
-  Debezium's heartbeat in `live`: the WAL pushes each change, nothing polls.
-- Every retried batch landed once: 0 duplicates in bronze's 245,234 events (the 245,221 writes plus 13 from the T4 checks), through five stream failures. After
-  `lab-down` and `lab-up`, the row counts of `archive`, `live`, Kafka and silver were unchanged, and the resumed
-  stream added no row.
-- **T2, its two datasets:** the human gold set, 200 picks joined to the model output they were cut from (50 more
-  excluded, all because their page image is gone), a gold Iceberg table read twice the same. They come from 27 curated
-  results, 15 of them last saved by my team and 12 by the client's staff; each pick carries its
-  result's `saved_by_domain`, so the gold set can be cut to the client's own work. The detector's test
-  split, 26 of the 132 documents in the AI team's labelled set (341 pages), none on both sides, its list's sha256
-  recorded.
+| Result | Measured |
+|---|---|
+| Up and down by playbook | `lab-up` in 17 to 19 s, `lab-down` in 12 to 13 s, every leftover counted 0 (`lab-up` takes 3 min 16 s once the data path is installed) |
+| GPUs by GitOps | Ansible installs k3s, k3s installs Argo CD, Argo CD installs the NVIDIA GPU Operator on the machine's own driver: both RTX 3060s schedulable, a CUDA test pod at 7,193 GFLOP/s |
+| The shared machine protected | The AI team's containers, configs and firewall chains unchanged; the API and kubelet ports (6443, 10250) closed, tested from a laptop on the office VPN; 76 MB used on a root disk that was 98% full; every addition listed with its removal in a teardown playbook |
+
+### Phase 2a: the data path
+
+**The client's OCR history, copied once and replayed, flows by change data capture (CDC) into an Iceberg lakehouse,
+so a dataset is a versioned table, not a file someone exported** (acceptance B1 to B16,
+[the table](docs/runbooks/data-path.md#verify-end-to-end)).
+
+```mermaid
+flowchart LR
+  src[("The client's databases<br/>read once")] -->|"SELECT, no<br/>people's columns"| arc[("Postgres: archive<br/>the frozen copy")]
+  arc -->|"replayer,<br/>in time order"| live[("Postgres: live")]
+  live -->|"WAL"| dbz["Debezium"] --> kafka["Kafka"] --> spark["Spark stream"]
+  spark --> bronze["Iceberg bronze<br/>every event"]
+  spark --> silver["Iceberg silver<br/>each row now"]
+  silver -->|"gold job"| gold["Iceberg gold<br/>the human gold set"]
+```
+
+The lab never puts a replication slot on the client's database
+([why](docs/notes/wal-slot-debezium.md#decision-1-no-slot-on-a-shared-database)): it captures changes from its own
+replayed copy, `live`.
+
+| Result | Measured |
+|---|---|
+| A copy without people | The client's OCR tables read once, read-only, one SELECT per table leaving people's columns behind: 239,880 rows, 28 tables across two environments; 0 copied rows holding a user's name |
+| The stack by GitOps | Six Argo CD applications healthy in 3 min 17 s: CloudNativePG (Postgres 17.11), Strimzi (Kafka 4.3.1, 30 topics), Debezium, Kubeflow Spark, SeaweedFS as the S3 store, the lab's own objects |
+| History replayed | 86.8 days of the client's history rewritten in time order: 245,221 writes in 601 s, more than the rows because each row's past versions come before its current one |
+| Change capture | Debezium's lag p99 1.19 s; Spark 4.1.4 writes bronze (every event as it arrived) and silver (the current state of each row); silver equals the copy for all 28 table and environment pairs |
+| **T4, first half** | 10 replayed saves reached silver within 31.7 s of their commit (the limit is 60 s); nothing polls: only the replayer's writes and Debezium's heartbeat touched `live` |
+| No duplicates, through failures | 0 duplicates in bronze's 245,234 events (the writes plus 13 from the T4 checks) through five stream failures; `lab-down` then `lab-up` changed no count |
+| **T2, its two datasets** | The human gold set: 200 picks joined to the model output they were cut from (50 excluded: their page image is gone), read twice the same; from 27 curated results, 15 last saved by my team and 12 by the client's staff, so it can be cut to the client's own work. The detector's test split: 26 of the 132 documents in the AI team's labelled set of 2,040 page images (341 pages in the split), none on both sides, its list's sha256 recorded |
+
+## The architecture
+
+**Three owners, no overlap: Ansible owns the machine's operating system, Argo CD owns the cluster's services from Git,
+and the laptop brings the Secrets and the on-demand runs.**
+
+```mermaid
+flowchart LR
+  subgraph laptop["Laptop"]
+    ans["Ansible"]
+    launch["Launchers<br/>replay, Spark jobs"]
+    sec["Secrets<br/>never in Git"]
+  end
+  gh["GitHub<br/>the lab's repo"]
+  subgraph box["Ubuntu machine, 2 x RTX 3060, shared with the AI team"]
+    docker["The AI team's Docker<br/>untouched"]
+    subgraph k3s["k3s, only during a session"]
+      argo["Argo CD"]
+      svc["GPU Operator,<br/>the data path"]
+      runs["On-demand runs"]
+    end
+  end
+  ans -->|"ssh: install,<br/>lab-up, lab-down"| k3s
+  gh -->|"the desired state"| argo -->|"installs"| svc
+  launch -->|"ssh tunnel<br/>to the API"| runs
+  sec -->|"over the tunnel"| k3s
+```
+
+Each on-demand run is stamped with the commit it came from (checked offline so far). From home, the laptop reaches the
+machine through the office VPN.
 
 ## The AWS track
 
-**How it is proven.** RDS and EKS are covered by `terraform test` against a mocked AWS provider; the network,
-identity, keys, storage, queues and secrets are applied to LocalStack 4.14; the Kubernetes layer runs on kind on a
-laptop. No AWS account is used. Every number below comes from a run, in [the runbook](docs/runbooks/aws-track.md); the
-acceptance checks are C1 to C20 of [the spec](docs/specs/aws-track.md#acceptance).
+**The same platform written for AWS and EKS in Terraform, and proven without an AWS account:** RDS and EKS by
+`terraform test` against a mocked AWS, the network, identity, keys, storage, queues and secrets applied to LocalStack
+4.14, and the Kubernetes layer run on kind on a laptop. The measured results are in
+[the reviewer table](#for-a-reviewer-each-skill-and-where-it-is-proven); every run is in
+[the runbook](docs/runbooks/aws-track.md), the checks are C1 to C20 of [the spec](docs/specs/aws-track.md#acceptance).
 
 ```mermaid
 flowchart LR
@@ -154,81 +189,17 @@ flowchart LR
   ls -->|"Secrets Manager, SQS, S3"| plat
 ```
 
-- **Terraform:** seven modules, each with its tests: a three-AZ VPC with one NAT gateway in dev and one per AZ as a
-  switch, an S3 gateway endpoint, flow logs; one KMS key for S3, RDS, Secrets Manager and EKS secrets; a private,
-  versioned, TLS-only lake bucket; IAM roles for EKS Pod Identity; RDS for PostgreSQL 17 with logical replication on
-  and its password managed by RDS; EKS 1.35 with access entries, an on-demand system node group and its add-ons;
-  Karpenter's controller role and its spot interruption queue fed by four EventBridge rules. tflint and Trivy clean,
-  with every Trivy finding fixed in code; the mocked apply caught a `for_each` over IDs unknown at plan time that a
-  real plan would have failed on.
-- **The platform on kind:** HTTPS through Envoy Gateway (Gateway API) with a cert-manager certificate; a value
-  changed in Secrets Manager reached the cluster in 14 s through External Secrets; Kyverno `ValidatingPolicy` rules
-  denied a `:latest` image and a pod without limits, and reported a root pod in audit mode.
-- **Autoscaling:** under 899 requests a second (0 failed of 211,658, p95 106 ms) the HPA decided on 5 replicas after
-  33 s, running at 40 s, and went back to 1 after; KEDA scaled an SQS worker from 0 to 5 in 31 s and back to 0; Karpenter, on KWOK's
-  simulated nodes, chose spot first, used on-demand only past spot's limit, drained a reclaimed spot node with 11 of 12
-  pods ready at worst, and consolidated to no nodes.
-- **Databases (CloudNativePG):** an accidental `DELETE` undone by a point-in-time restore to 3 s before it, ready in
-  79 s; a crashed primary replaced with a 30.5 s write gap; PostgreSQL 16 to 17 by logical replication under writes,
-  checksums equal, a 9.5 s write gap at the cutover.
-- **Alerts and releases:** a bad release shipped by commit raised an alert (an Alertmanager notification) 1 min 58 s after its pod started, Loki held the
-  failing requests, and the alert resolved after the revert; an Argo Rollouts canary aborted a faulty build 37 s
-  after release, with one pod of six ever serving it.
-- **Cost:** 958 USD a month all on-demand, 654 with spot workers, 576 with a Compute Savings Plan on the system nodes
-  and an RDS reservation, from AWS's public price list ([the estimate](docs/aws-cost-estimate.md)).
-- **Git flow:** CI on every pull request ([ci.yml](.github/workflows/ci.yml)), rulesets for `main` and release tags as
-  JSON, imported in the repo's settings ([rulesets](.github/rulesets/)), [CODEOWNERS](.github/CODEOWNERS), a pull request template, releases from tags.
-
-## The architecture
-
-```mermaid
-flowchart LR
-  subgraph client["The client's databases (read once)"]
-    src[("4 sources<br/>development and staging")]
-  end
-  subgraph laptop["Laptop"]
-    ans["Ansible"]
-    copy["the copy: 28 CSVs<br/>239,880 rows"]
-    labels["the labelled set:<br/>2,040 page images"]
-    launch["launchers: replay, Spark jobs"]
-    sec["Secrets (never in Git)"]
-  end
-  gh["GitHub: the lab's private repo"]
-  subgraph box["Ubuntu machine, 2 x RTX 3060, shared with the AI team"]
-    docker["the AI team's Docker<br/>(untouched)"]
-    subgraph k3s["k3s, only during a session"]
-      argo["Argo CD"]
-      gpuop["GPU Operator"]
-      arc[("Postgres: archive")]
-      rep["replayer"]
-      live[("Postgres: live")]
-      dbz["Debezium"]
-      kafka["Kafka"]
-      spark["Spark stream"]
-      subgraph lake["SeaweedFS (S3)"]
-        ice["Iceberg: bronze, silver"]
-        gold["Iceberg: gold, the human gold set"]
-        split["the labelled set, test split"]
-      end
-    end
-  end
-  src -- "SELECT, no people's columns" --> copy
-  copy --> arc
-  ans -- "ssh: bootstrap, lab-up, lab-down" --> k3s
-  launch -- "ssh tunnel to the API" --> k3s
-  sec --> k3s
-  labels -- "split by document" --> split
-  argo -- "reads infra/argocd/" --> gh
-  argo -- installs --> gpuop
-  argo -- "installs the data path" --> arc
-  arc --> rep -- "history, in time order" --> live
-  live -- "WAL, slot" --> dbz --> kafka --> spark --> ice
-  ice -- "gold job" --> gold
-```
-
-Ansible owns the machine's operating system; Argo CD owns the cluster's services, from Git; the Secrets and what runs
-on demand (a replay, a Spark job) come from the laptop, and the launchers stamp each run with the commit it came from (tested offline so far). From home, the laptop reaches the
-machine through the office VPN.
+| Area | What was built |
+|---|---|
+| Network | A three-AZ VPC, one NAT gateway in dev and one per AZ by a switch; an S3 gateway endpoint; flow logs |
+| Keys and storage | One KMS key for S3, RDS, Secrets Manager and EKS secrets; a private, versioned, TLS-only lake bucket |
+| Database | RDS for PostgreSQL 17, logical replication on, its password managed by RDS |
+| Kubernetes | EKS 1.35 with access entries, an on-demand system node group and IAM roles for Pod Identity; Karpenter's role and its spot interruption queue, fed by four EventBridge rules |
+| Checks | tflint and Trivy clean, every Trivy finding fixed in code; the mocked apply caught a `for_each` over IDs unknown at plan time, which a real plan would have failed on |
+| The platform on kind | HTTPS through Envoy Gateway (Gateway API) with a cert-manager certificate; External Secrets from Secrets Manager; Kyverno `ValidatingPolicy` rules that deny a `:latest` image and a pod without limits, and report a root pod in audit mode |
+| Drills | HPA under load, KEDA on SQS, Karpenter on simulated nodes (spot first, on-demand past spot's limit, consolidated to none); point-in-time restore, failover, a PostgreSQL 16 to 17 upgrade; an alert that finds a bad release; an Argo Rollouts canary that stops one |
+| Cost | From AWS's public price list ([the estimate](docs/aws-cost-estimate.md)) |
+| Git flow | CI on every pull request, scoped to what a change touches ([ci.yml](.github/workflows/ci.yml)); rulesets for `main` and release tags as JSON ([rulesets](.github/rulesets/)); [CODEOWNERS](.github/CODEOWNERS); a pull request template; releases from tags |
 
 ## How it is built
 
