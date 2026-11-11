@@ -1,15 +1,40 @@
 # ocr-platform
 
-An ML platform for the engineers who build and run a real OCR workload. The workload extracts documents for a garment
-manufacturer, my team's client: it maps each brand customer's garment specification onto the client's own template.
-The platform's users are my team's AI engineers (the AI team), who train the workload's detector and own its prompts,
-and the engineers whose services call it. It runs on an Ubuntu machine in the office with two GPUs, shared with the AI
-team, on the client's real data. Built so far: a GPU cluster run by GitOps on k3s, and a change data capture (CDC)
-path into an Iceberg lakehouse with datasets named by version. Next to it, [the AWS track](#the-aws-track) writes the
-same platform for AWS and EKS in Terraform and proves it without an AWS account. Training, the promotion gate, GPU and
-LLM serving, retrieval and their observability are [the roadmap](#the-roadmap), each published here when its
-acceptance checks pass. I am a cloud, DevOps and data platform engineer in the same company; I built and run the lab,
-every step checked against acceptance criteria with real output.
+**An ML platform that gives an AI team one path to train, check, serve and watch its models on its own GPUs, built
+around a real OCR system and its real data.**
+
+```mermaid
+flowchart LR
+  subgraph base["GPU Kubernetes on a shared machine: k3s, GPU Operator, Argo CD"]
+    direction LR
+    data["Versioned data<br/>CDC into Iceberg"]:::built
+    train["Training<br/>jobs, GPU queue, MLflow"]:::planned
+    gate["Promotion gate<br/>frozen test set, gold set"]:::planned
+    serve["Serving<br/>Triton, vLLM, one gateway"]:::planned
+    rag["Retrieval<br/>pgvector"]:::planned
+    obs["Observability<br/>SLOs, alerts, drills"]:::planned
+    data --> train --> gate --> serve --> obs
+    rag --> serve
+  end
+  classDef built fill:#d1fae5,stroke:#047857,color:#064e3b
+  classDef planned fill:#f3f4f6,stroke:#6b7280,color:#1f2937,stroke-dasharray:4 3
+  style base fill:none,stroke:#047857,stroke-width:2px
+```
+
+Green is built and checked; grey is planned, and each part is published here when its acceptance checks pass.
+
+- **The system:** an OCR service that reads the garment specification documents a garment manufacturer, my team's
+  client, receives from its brand customers, and pre-fills the client's own template for a person to confirm
+  ([the use case](docs/use-case.md)).
+- **Who the platform serves:** my team's AI engineers (the AI team), who train the detector and own the prompts, and
+  the engineers whose services call the OCR.
+- **Where it runs:** one Ubuntu machine with two RTX 3060 GPUs, shared with the AI team, on the client's real data.
+- **Built:** the GPU cluster, run by GitOps; the versioned data path; and [the same platform on AWS](#the-aws-track),
+  proven without an AWS account.
+- **Next:** training, the gate, serving, retrieval and observability ([the roadmap](#the-roadmap)).
+
+I am a cloud, DevOps and data platform engineer at the same company. I built and run this lab, and every step is
+checked against acceptance criteria with real output.
 
 ## Problem statements
 
