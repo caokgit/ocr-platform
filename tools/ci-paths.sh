@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Does a change touch a path this CI job checks? (docs/specs/aws-track.md#decisions, decision 21)
 #   tools/ci-paths.sh <terraform|manifests> [<git range>]   prints one line ending in run=true or run=false
-# In a pull_request run, HEAD is GitHub's test merge commit, so HEAD^1..HEAD is what the pull request brings in
-# (the checkout needs fetch-depth 2). In Actions the answer also goes to $GITHUB_OUTPUT for the job's later steps.
+# In a pull_request run, HEAD is GitHub's test merge commit, so HEAD^1..HEAD (the default) is what the pull request brings
+# in; a push run passes <before>..<after>, which needs the full history (fetch-depth 0): a push may carry many commits.
+# In Actions the answer also goes to $GITHUB_OUTPUT for the job's later steps.
 # Fails closed: if the change cannot be read, the script exits non-zero and the job fails; it never skips by mistake.
 set -euo pipefail
 job=${1:?usage: tools/ci-paths.sh <terraform|manifests> [<git range>]}
