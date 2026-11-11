@@ -31,7 +31,7 @@ The driver has the same two parts, and in a PySpark job its overhead also holds 
 On 2026-11-01, the streaming job (Kafka to Iceberg bronze and silver) took six starts during the first full fill, the
 first replay of the client's whole history through the pipeline.
 Each failed start retried its unfinished batch from the checkpoint, so nothing was lost or written twice
-([the outcomes](../../README.md#the-outcomes-so-far)). Three failed on memory, and the sixth held:
+([the outcomes](../../README.md#built-so-far)). Three failed on memory, and the sixth held:
 
 | Start | What happened | Change |
 |---|---|---|

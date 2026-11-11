@@ -3,7 +3,7 @@
 How the lab puts a single-node k3s cluster, the NVIDIA GPU Operator and Argo CD on the GPU box, the office machine the
 AI team (the team that builds the OCR workload) runs its Docker workloads on, **beside those workloads, without
 changing them**. The cluster runs only while the lab works, and is removed completely. It is the platform every
-[goal](../../README.md#the-goals) runs on, and implements [D3](../design.md#decisions), [D4](../design.md#decisions),
+[outcome](../../README.md#outcomes) runs on, and implements [D3](../design.md#decisions), [D4](../design.md#decisions),
 [D10](../design.md#decisions) and [D13](../design.md#decisions). The design notes behind it:
 [Kubernetes on a machine another team uses](../notes/kubernetes-on-a-shared-machine.md),
 [GPUs on the host's driver](../notes/gpus-on-the-hosts-driver.md), [Ansible and Argo CD](../notes/ansible-and-argo-cd.md),

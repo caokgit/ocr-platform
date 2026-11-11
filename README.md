@@ -1,19 +1,62 @@
 # ocr-platform
 
-The first two phases of an ML platform, built around a real OCR workload: a GPU cluster run by GitOps on k3s, and a
-change data capture (CDC) path into an Iceberg lakehouse with datasets named by version. It runs on an Ubuntu machine
-in the office with two GPUs, shared with the AI team that builds the workload. Next to it, [the AWS track](#the-aws-track)
-writes the same platform for AWS and EKS in Terraform and proves it without an AWS account: tested against a mocked
-AWS, applied to LocalStack, and run on kind with measured operations drills. I am a cloud, DevOps and data
-platform engineer in the same company; I built and run the lab, every step checked against acceptance criteria with
-real output. Training and GPU serving are [the roadmap](#the-roadmap).
+An ML platform for the engineers who build and run a real OCR workload. The workload extracts documents for a garment
+manufacturer, my team's client: it maps each brand customer's garment specification onto the client's own template.
+The platform's users are my team's AI engineers (the AI team), who train the workload's detector and own its prompts,
+and the engineers whose services call it. It runs on an Ubuntu machine in the office with two GPUs, shared with the AI
+team, on the client's real data. Built so far: a GPU cluster run by GitOps on k3s, and a change data capture (CDC)
+path into an Iceberg lakehouse with datasets named by version. Next to it, [the AWS track](#the-aws-track) writes the
+same platform for AWS and EKS in Terraform and proves it without an AWS account. Training, the promotion gate, GPU and
+LLM serving, retrieval and their observability are [the roadmap](#the-roadmap), each published here when its
+acceptance checks pass. I am a cloud, DevOps and data platform engineer in the same company; I built and run the lab,
+every step checked against acceptance criteria with real output.
+
+## Problem statements
+
+**The AI team's OCR models are trained by hand, judged by eye, served on CPU and changed by configuration, so nobody
+can say whether a change made the OCR better or worse.** Each problem below is the AI team's, and through them the
+client's. [The use case](docs/use-case.md) follows one document through the system and gives
+[the full evidence](docs/use-case.md#where-it-falls-short-today).
+
+| # | Problem | Evidence, measured on the real system |
+|---|---|---|
+| P1 | Detector training cannot be reproduced | Trained by hand in the Ultralytics Platform web UI; about 15 datasets in the workspace, none marked as the one behind production (2026-10-21) |
+| P2 | There is no trustworthy evaluation | The validation split is by page: 99 of its 146 pages come from documents also in training; no frozen test set (2026-10-23) |
+| P3 | Changes ship with no gate and no lineage | Nothing records which detector weights made a run, and weight file names do not match their contents; models and prompts change by configuration with no evaluation before use (2026-10-22) |
+| P4 | No dataset can be rebuilt | Human picks sit in Odoo's JSON, predictions in the service's database, joined only by run, page and an approximate box match (2026-10-31) |
+| P5 | Every element goes to GPT, at a cost and with unstable answers | One 10-page document: 28 GPT calls and 488,836 input tokens (development, 2026-10-24); over 16 runs of one document with one model, 7 of 31 elements changed pick at least once, about 1 in 4 (staging, 2026-10-24) |
+| P6 | The detector runs on CPU, inside the OCR container | The service's code and image (2026-10-19) |
+| P7 | There is no self-service way to train or serve on the team's own GPUs | Training needs a person in a cloud web UI; on the shared machine, the AI team's workloads use both GPUs with nothing scheduling between jobs (2026-10-25) |
+| P8 | Past human picks are never reused | No route or job reads the people's picks back from Odoo; each run starts from nothing (2026-10-24) |
+| P9 | Nobody can see the model serving's health | The service logs to stderr only: no metrics, no tracing, no alert (2026-10-24) |
+
+## Outcomes
+
+**The lab builds one platform that takes a versioned dataset to a model that is gated, served and observed, for the engineers who build
+the models, and measures every step against today's system.** Each outcome is an acceptance criterion, shown on the
+shared machine with the real data. Its metric, today's baseline and its target, fixed before the run and never after,
+are in [the design](docs/design.md#outcomes).
+
+| # | Outcome | Solves | Phase | Status |
+|---|---|---|---|---|
+| T1 | Reproducible detector training: the production recipe reproduced within a stated tolerance; a rerun gives the same numbers | P1 | 2b | Planned |
+| T2 | Gold sets and a scoreboard: a test split frozen by document, a human gold set, one table of every model version's scores, each with its interval | P2 | 2a, 2b | **Half done:** the test split (26 of 132 documents, 341 pages) and the gold set (200 human picks), 2026-11-01 |
+| T3 | Fewer GPT calls: a self-hosted vision-language model behind the gateway answers a share of the elements at equal top-1 on the gold set | P5 | 3a | Planned |
+| T4 | Versioned datasets from a CDC path: a replayed edit in the lakehouse within 60 s with no polling; a training run rebuilt from its dataset version | P4 | 2a, 2b | **Half done:** the slowest of 10 edits in 31.7 s, nothing polling (2026-11-01) |
+| T5 | GPU serving with measured trade-offs: accuracy, latency and throughput per precision (FP32, FP16, INT8), against today's CPU | P6 | 3a | Planned |
+| T6 | Serving and GPU observability: SLOs for serving and training, each alert proven by a drill | P9 | 3c | Planned |
+| T7 | One gate and full lineage: a deliberately worse model and a worse prompt both blocked; every output names its weights, prompt and deployment | P3 | 2b, 3a | Planned |
+| T8 | Self-service training and serving: one command per task for an AI engineer; a second GPU job waits in its queue within its quota | P7 | 2b, 3a | Planned |
+| T9 | Past picks reused by retrieval: the nearest human-picked crops as context, measured by recall@k, latency and the effect on top-1 | P8 | 3b | Planned |
 
 ## For a reviewer: each skill and where it is proven
 
-Five minutes, one row per skill; every link opens a command with its real output.
+Five minutes, one row per skill; every row links its proof, most of them a command with its real output.
 
 | Skill | The proof | Measured |
 |---|---|---|
+| GPU Kubernetes on a shared machine (Ansible, k3s, NVIDIA GPU Operator, Argo CD) | [The platform spec](docs/specs/gpu-box-platform.md), [its acceptance](docs/runbooks/gpu-box-bootstrap.md#8-acceptance) | Both RTX 3060s schedulable, a CUDA pod at 7,193 GFLOP/s; `lab-up` in 17 to 19 s, `lab-down` in 12 to 13 s with 0 leftovers; the AI team's containers unchanged |
+| A data platform for ML: CDC into a lakehouse (Postgres, Debezium, Kafka, Spark, Iceberg) | [The data path spec](docs/specs/data-path.md), [its acceptance](docs/runbooks/data-path.md#verify-end-to-end) | 245,221 writes replayed in 601 s; Debezium lag p99 1.19 s; an edit in silver in 31.7 s; 0 duplicates in 245,234 events |
 | AWS infrastructure in Terraform (VPC, IAM, KMS, S3, RDS, EKS) | [Modules and tests](infra/aws/terraform/modules/), [the checks](docs/runbooks/aws-track.md#21-every-check-that-needs-no-account), [the LocalStack apply](docs/runbooks/aws-track.md#22-apply-to-localstack) | 21 tests against a mocked AWS; 71 resources applied, replan clean, destroy clean |
 | Kubernetes platform by GitOps (Argo CD, Helm, Gateway API, cert-manager, secrets, policy) | [The overlays](infra/argocd/clusters/), [the platform on kind](docs/runbooks/aws-track.md#3-kind-with-the-platform), [the EKS render](docs/runbooks/aws-track.md#8-the-eks-overlay-and-ci-c5) | 9 Applications healthy; HTTPS with the lab CA; a secret change in 14 s; EKS overlay 0 invalid |
 | Autoscaling: HPA, KEDA, Karpenter with spot | [HPA](docs/runbooks/aws-track.md#41-hpa-under-load-c10), [KEDA](docs/runbooks/aws-track.md#42-keda-on-an-sqs-queue-c11), [Karpenter](docs/runbooks/aws-track.md#43-karpenter-on-kwok-spot-first-a-reclaim-consolidation-c12) | 1 to 5 pods in 40 s at 899 req/s; 0 to 5 workers; a spot reclaim with 11 of 12 ready |
@@ -22,49 +65,12 @@ Five minutes, one row per skill; every link opens a command with its real output
 | Git flow and CI | [Workflows, rulesets, CODEOWNERS](.github/), [a pull request](https://github.com/caokgit/ocr-platform/pull/1), [a release](https://github.com/caokgit/ocr-platform/releases/tag/v0.3.0) | CI caught two real faults on the first push; both fixed through PR #1 |
 | Observability and releases | [An alert finds a bad release](docs/runbooks/aws-track.md#61-an-alert-finds-a-bad-release-c16), [canary](docs/runbooks/aws-track.md#62-canary-with-analysis-c17) | alert in 1 min 58 s, failures traced in Loki; a faulty build aborted in 37 s |
 
-## The problem
-
-**The workload.** A garment manufacturer, my team's client, receives garment specification documents from about a
-dozen brand customers, each PDF in the brand's own layout. Before manufacturing, its technical staff rebuild each one as
-the client's own standard technical document, laid out from a template. An OCR service, built by my team's AI
-engineers (the AI team), pre-fills the template: Azure Document Intelligence reads the PDF, a YOLO detector finds the
-drawings, GPT models score and rank the candidates for each template slot, and a person confirms the result in Odoo.
-The service runs in a development and a staging environment; staging is the one in daily use, and "the production
-weights" below are the detector weights it uses. [The use case](docs/use-case.md) follows one document through it.
-
-**Its gaps, measured on the real data:**
-
-| Gap | Evidence |
-|---|---|
-| No single source says what the right output is | Four partial ones: templates (the elements a document should contain), curated results (the crops a person kept), reference pairs (originals with their hand-made standard documents), labelled pages (the detector's training boxes) |
-| The same input gets different answers | Over 16 runs of one document with one model, 7 of 31 elements changed pick at least once (about 1 in 4; 2026-10-24); model upgrades move more |
-| Little human feedback | 27 curated results in the development and staging environments together (2026-10-31), 3 of them published (2026-10-22) |
-| No lineage for the detector, no comparison for changes | Nothing records which detector weights made a run, and weight file names do not match their contents; models and prompts change by configuration with no evaluation before use |
-| A leaky validation split | The detector's split is by page: 99 of its 146 validation pages come from documents also in training (2026-10-23) |
-| Picks and predictions in separate stores | Human picks sit in Odoo's JSON, predictions in the service's database, joined only by run, page and an approximate box match; no dataset can be rebuilt |
-| The model's doubt never reaches the person | The service marks an element `review` when the model is unsure, but Odoo fills each slot by score alone and never shows the flag |
-| The detector on CPU | YOLO runs inside the OCR container, on CPU |
-
-## The goals
-
-Each goal is an acceptance criterion, shown on the shared machine with the real data, measured against today's system.
-
-| # | Gap | Goal | Done when |
-|---|---|---|---|
-| T1 | The detector is trained by hand in the Ultralytics Platform web UI; about 15 datasets (2026-10-21), none marked as the one behind production | Reproducible detector training | The production recipe is reproduced within a stated tolerance of the production weights' test mAP@50 and recall; a rerun gives the same numbers |
-| T2 | No frozen test set | Gold sets and a scoreboard | A detector test split frozen by document, a growing gold set of human picks (the crops people kept), one table of every model version's scores, each number with its interval |
-| T3 | A GPT call for every element of every document | A cheaper element choice | The share of elements answered without GPT at equal top-1 on the gold set, and GPT cost per document before and after |
-| T4 | No dataset can be rebuilt | Versioned datasets from a CDC path | First half: a replayed human edit reaches the lakehouse's current-state (silver) table within a minute with no polling. Second half: a training run reproduces from its dataset version |
-| T5 | The detector on CPU | GPU serving with measured trade-offs | mAP@50, recall, p50 and p95 latency and throughput for each numeric precision (FP32, FP16, INT8), against today's CPU |
-| T6 | No alerting; incidents found by people | Alerts from real incidents | Each alert fires in a replayed drill and has a runbook row |
-| T7 | Models and prompts change with no lineage or comparison | One gate and full lineage | A deliberately worse model and a worse prompt are both blocked; any output names its weights, prompt and deployment |
-
-## The outcomes so far
+## Built so far
 
 **Phase 1, the platform** (acceptance A1 to A11, [the table](docs/runbooks/gpu-box-bootstrap.md#8-acceptance)):
 
 - A single-node k3s v1.36.5 cluster next to the AI team's Docker workloads, running only during lab sessions,
-  started and stopped by two playbooks: `lab-up` in 17 to 19 s and `lab-down` in 12 s, with every leftover counted 0
+  started and stopped by two playbooks: `lab-up` in 17 to 19 s and `lab-down` in 12 to 13 s, with every leftover counted 0
   (phase 1's figures; with the data path, `lab-up` takes 3 min 16 s).
 - Ansible installs k3s, and k3s installs Argo CD from a file; from then on Argo CD installs the cluster's services from
   the lab's repo, first the NVIDIA GPU Operator on the machine's own driver: both RTX 3060s schedulable, a CUDA test pod at
@@ -96,7 +102,7 @@ Each goal is an acceptance criterion, shown on the shared machine with the real 
   stream added no row.
 - **T2, its two datasets:** the human gold set, 200 picks joined to the model output they were cut from (50 more
   excluded, all because their page image is gone), a gold Iceberg table read twice the same. They come from 27 curated
-  results, 15 of them last saved by my team (likely testing) and 12 by the client's staff; each pick carries its
+  results, 15 of them last saved by my team and 12 by the client's staff; each pick carries its
   result's `saved_by_domain`, so the gold set can be cut to the client's own work. The detector's test
   split, 26 of the 132 documents in the AI team's labelled set (341 pages), none on both sides, its list's sha256
   recorded.
@@ -220,28 +226,33 @@ the text, runbooks written as each step runs. [How I work](docs/how-i-work.md) s
 
 This repo is published from the lab's private repo. In its code and outputs, the client's names and field names,
 internal terms, the team's module prefix, resource and account names and the private repo's URL are replaced,
-internal addresses masked, and the other team's firewall rules elided; everything else is as it ran.
+internal addresses masked, and the AI team's firewall rules elided; everything else is as it ran.
 
 ## The roadmap
 
-Phases 1 and 2a and the AWS track are built, with the evidence above. The phases below are planned and not built yet; each is published here
-when its acceptance checks pass.
+Phases 1 and 2a and the AWS track are built, with the evidence above. Next, the design of the whole platform is
+published first: its users and their interfaces, every layer marked built or planned, the lineage chain from a
+dataset version to each response, and the plan for sharing two 12 GB GPUs with the AI team. Then each phase below is
+built on the shared machine and published here when its acceptance checks pass.
 
-| Phase | Builds | Goals |
+| Phase | Builds | Outcomes |
 |---|---|---|
-| 2b | Detector training in Argo Workflows, MLflow tracking and registry, a student ranker distilled from GPT's scores, one promotion gate | T1, T2's scoreboard, T3, T4's second half, T7 |
-| 3a | The detector served on NVIDIA Triton: ONNX, then TensorRT FP32, FP16 and INT8, against today's CPU | T5 |
-| 3b | The monitoring stack from the AWS track (Prometheus, Grafana, Loki) on the GPU machine, with the DCGM exporter and OpenTelemetry; alerts proven by replayed drills of the client's incidents | T6 |
-| AWS | The AWS track applied to a real account: `envs/dev` with its S3 state bucket, then the eks overlay | |
+| 2b, the training platform | One job template an AI engineer submits with a dataset version and a recipe; GPU queueing and quotas on the two GPUs; namespaces with RBAC and NetworkPolicy; MLflow tracking and registry; the detector's production recipe reproduced; one promotion gate on the frozen test split; lineage from the dataset version to the weights. The orchestrator, Argo Workflows or Airflow, is chosen in its spec | T1, T2's scoreboard, T4's second half, T7, T8 |
+| 3a, model serving | The detector on NVIDIA Triton: ONNX, then TensorRT FP32, FP16 and INT8, against today's CPU. A small open vision-language model on vLLM, on one RTX 3060. One OpenAI-compatible gateway in front of the GPT deployments and vLLM: models switched by configuration, usage and cost per key, the answering model recorded | T3, T5, T7, T8 |
+| 3b, retrieval | Crop and element embeddings in pgvector on the lab's existing Postgres; the nearest human-picked crops retrieved as context for the model (RAG on the OCR's own data) | T9 |
+| 3c, observability and day 2 | GPU metrics (DCGM), Triton and vLLM metrics, the platform's SLOs, GPU use per namespace; drills of a bad model, a full GPU and a stuck queue; an upgrade drill (k3s, the GPU Operator, a Helm rollback) | T6 |
+
+Not scheduled: KEDA scaling on Kafka; a student ranker distilled from GPT's scores, grown by active learning; the AWS
+track applied to a real account (`envs/dev` with its S3 state bucket, then the eks overlay).
 
 ## Where to read next
 
 1. [The use case](docs/use-case.md): the workload, one document through it, and its gaps.
 2. [How I work](docs/how-i-work.md): the method, and three errors it caught.
 3. [The design notes](docs/notes/README.md): nine engineering questions the lab settled, each with its real values.
-4. [The design](docs/design.md), decision by decision, and the specs, [phase 1's platform](docs/specs/gpu-box-platform.md)
-   and [phase 2a's data path](docs/specs/data-path.md): each decision with its why, and the acceptance checks as worded
-   and as run.
+4. [The design](docs/design.md): each outcome's metric, baseline and target, then each decision with its why; and the
+   specs, [phase 1's platform](docs/specs/gpu-box-platform.md) and [phase 2a's data path](docs/specs/data-path.md),
+   with their acceptance checks as worded and as run.
 5. [The runbooks](docs/runbooks/README.md): the whole journey, from a fresh laptop to a running lab and back to a
    clean machine, each command with its real output.
 6. The phase reviews, [phase 1](docs/phases/phase-1-gpu-box.md) and [phase 2a](docs/phases/phase-2a-data-path.md):

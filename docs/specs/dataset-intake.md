@@ -2,7 +2,7 @@
 
 How the detector dataset of the AI team (my team's engineers who build the OCR workload) enters the lab: what goes in, what comes out, and the checks that
 prove the copy is complete. It serves [D14](../design.md#decisions) (the lab retrains the detector) and
-goal [T1](../design.md#target-outcomes) (reproducible training from a named dataset version).
+outcome [T1](../design.md#outcomes) (reproducible training from a named dataset version).
 How to run it: [runbook](../runbooks/ultralytics-dataset-download.md). The dataset: the AI team's labelled pages,
 on Ultralytics Platform ([the workload](../design.md#the-workload)).
 

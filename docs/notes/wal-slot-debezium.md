@@ -2,7 +2,7 @@
 
 A design note: how change data capture holds on to Postgres's log, why the lab never puts a replication slot on a
 shared database, and why an idle database still needs a heartbeat. The data path it belongs to is in the
-[README](../../README.md#the-outcomes-so-far).
+[README](../../README.md#built-so-far).
 
 **The one idea: the WAL is one log for the whole Postgres server; a slot is a bookmark in it for one reader; Debezium
 is that reader. Postgres deletes old log files only from the front, and never past the slot's bookmark, which moves

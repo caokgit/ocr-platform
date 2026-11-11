@@ -60,4 +60,4 @@ The split between services from Git and runs from the laptop, and the stamp, are
 [data path spec's layout](../specs/data-path.md#layout); the launchers are
 [pipelines/replay/launch.py](../../pipelines/replay/launch.py) and
 [pipelines/lake/launch.py](../../pipelines/lake/launch.py). The same idea, every output traceable to what made it,
-is goal T7 of the [roadmap](../../README.md#the-goals).
+is outcome T7 ([the outcomes](../../README.md#outcomes)).

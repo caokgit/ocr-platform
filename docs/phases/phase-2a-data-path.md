@@ -64,9 +64,9 @@ T4 checks (section 4).
 | The data path installed from Git | Six new Argo CD apps, everything `Healthy` in 3 min 17 s: four operators, Postgres 17.11, Kafka 4.3.1 with 30 topics, SeaweedFS with its bucket | [Step 2](../runbooks/data-path.md#2-install-the-data-path-box) |
 | The lab's own copy of the client's tables | `archive`: 28 of 28 tables match the manifest (B2) | [Step 3](../runbooks/data-path.md#3-load-archive-laptop-to-box) |
 | History replayed, captured and kept | 245,221 rows written in 601 s, `live` equal to `archive` (28 of 28); Debezium's lag p99 1.19 s; silver equal to the copy, 239,880 rows (B4); 232 PDFs (B5); Spark 4.1.4 under the Kubeflow operator (B3) | [Step 4.4](../runbooks/data-path.md#4-fill-live-and-the-lake-box) |
-| T4's first half: a replayed human edit in silver within a minute, without polling | 10 saves, the slowest 31.7 s of 60; no role but the replayer queried the copied tables (B6); the slot holds WAL only while Debezium is stopped (B7, B8) | [Step 4.5](../runbooks/data-path.md#4-fill-live-and-the-lake-box), [T4](../design.md#target-outcomes) |
+| T4's first half: a replayed human edit in silver within a minute, without polling | 10 saves, the slowest 31.7 s of 60; no role but the replayer queried the copied tables (B6); the slot holds WAL only while Debezium is stopped (B7, B8) | [Step 4.5](../runbooks/data-path.md#4-fill-live-and-the-lake-box), [T4](../design.md#outcomes) |
 | A path that survives failure | 0 bronze duplicates through five stream failures, and silver still equal to the copy (B9); `lab-down` and `lab-up` keep every count (B12) | [Verify end to end](../runbooks/data-path.md#verify-end-to-end) |
-| T2's two datasets | `gold.human_picks`: 200 picks, 50 excluded with their reason, read twice the same (B10); the detector test split: 26 of 132 garment specs, none in both sides, its sha256 recorded (B11) | [Step 5](../runbooks/data-path.md#5-the-gold-sets-box-then-laptop), [T2](../design.md#target-outcomes) |
+| T2's two datasets | `gold.human_picks`: 200 picks, 50 excluded with their reason, read twice the same (B10); the detector test split: 26 of 132 garment specs, none in both sides, its sha256 recorded (B11) | [Step 5](../runbooks/data-path.md#5-the-gold-sets-box-then-laptop), [T2](../design.md#outcomes) |
 | The shared machine protected | `lab-data` within its 8 GiB quota (B13); the AI team's Docker unchanged (B15); teardown previewed and nothing outside k3s's folders (B16) | [Verify end to end](../runbooks/data-path.md#verify-end-to-end) |
 | Every step repeatable | The data path's stage of the journey, each command with its real output; 11 new failure-mode rows | [The journey](../runbooks/README.md), [known failure modes](../known-failure-modes.md) |
 
@@ -214,7 +214,7 @@ flowchart LR
     sp["splits/2026-09-24-4a208a33d4ca/<br/>test.txt: 26 garment specs, 341 pages"]
     dset["datasets/ultralytics/2026-09-24-4a208a33d4ca/<br/>the whole copy: 2,040 page images"]
   end
-  g -- "the student's evaluation" --> b2["phase 2b<br/>training, evaluation, gates"]
+  g -- "the gate's gold set" --> b2["phase 2b<br/>training, evaluation, gates"]
   sp -- "the detector's frozen test" --> b2
   dset -- "minus test.txt: 1,699 pages,<br/>the detector's train and validation" --> b2
 ```

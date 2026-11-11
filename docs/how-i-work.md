@@ -28,7 +28,7 @@ before each commit, catches broken links and anchors, em dashes and secret-shape
 
 Each one is a real error in the data path, the phase that copies the client's OCR tables once, replays their history
 into the lab's own Postgres, and streams every change through Kafka into a lakehouse: bronze keeps every change as it
-arrived, silver the current state of each row ([the outcomes](../README.md#the-outcomes-so-far)). Each was caught by
+arrived, silver the current state of each row ([the outcomes](../README.md#built-so-far)). Each was caught by
 the method, not by luck.
 
 ### 1. People's names, found before the copy was written
