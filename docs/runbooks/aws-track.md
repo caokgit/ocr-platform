@@ -574,7 +574,30 @@ no schema found for: CustomResourceDefinition x63
 Check: no invalid resource. The only kind skipped is `CustomResourceDefinition` (the definitions themselves); every
 custom resource (NodePool, EC2NodeClass, ValidatingPolicy, ClusterSecretStore, Gateway, ...) was checked against its
 schema from the CRDs catalog. CI ([ci.yml](../../.github/workflows/ci.yml)) runs this, `tools/check-terraform.sh`,
-the docs check and gitleaks on every pull request and push to `main`; its first runs on GitHub are C19.
+the docs check and gitleaks; its first runs on GitHub are C19. On a pull request and on a push, this job and the
+Terraform one first ask [tools/ci-paths.sh](../../tools/ci-paths.sh) whether the change touches a path their checks
+read, and skip those checks when it does not; the Monday run and a manual run check everything
+([decision 21](../specs/aws-track.md#decisions)). The same question, run on the laptop before a push or a pull
+request:
+
+```bash
+tools/ci-paths.sh terraform origin/main..HEAD; tools/ci-paths.sh manifests origin/main..HEAD
+```
+
+Output in CI (REAL, 2026-11-11), on the lab's push that changed the workflow (`be66abb`), then on a docs-only push:
+
+```text
+terraform: 5 files changed, 2 checked by this job: run=true
+manifests: 5 files changed, 2 checked by this job: run=true
+
+terraform: 1 files changed, 0 checked by this job: run=false        # a54c16d: the job 10 s instead of 150 s
+manifests: 1 files changed, 0 checked by this job: run=false        # 5 s instead of 27 s
+```
+
+Check: a job that says `run=false` reports success with its checks skipped; a change the script cannot read fails the
+job. A failed run reaches the owner by email: GitHub's Actions notification, failed workflows only, set once on the
+owner's account (Settings, Notifications, Actions); a run on a push or a schedule blocks nothing, so this is how a red
+`main` is seen.
 
 ## 9. Tear down
 
