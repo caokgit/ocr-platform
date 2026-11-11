@@ -41,7 +41,7 @@ without an account is named as such.
 | 18 | Observability | kube-prometheus-stack, Loki single binary with Grafana Alloy; alert rules as `PrometheusRule`; Alertmanager posts to an in-cluster webhook sink that logs every notification with its time | The sink makes the alert's timing measurable |
 | 19 | Database drills | CloudNativePG on kind: PG 16 to PG 17 by `Publication` and `Subscription`, cutover by moving a Service from pg16's PgBouncer `Pooler` to pg17's; `instances: 2` for the replica and a failover; Barman Cloud plugin backups to LocalStack S3 and a point-in-time restore | Replaces a dump-and-restore, where writes stop for the whole copy, with a measured cutover |
 | 20 | Cost | A script reads the AWS public price list and the Spot Advisor data for the design's resources; the estimate is a doc with every price dated ([the estimate](../aws-cost-estimate.md)) | No account needed to price the design |
-| 21 | CI | GitHub Actions: fmt, validate, tflint, `terraform test`, Trivy, kustomize + helm render with kubeconform, docs check, gitleaks | Every check here runs without credentials |
+| 21 | CI | GitHub Actions: fmt, validate, tflint, `terraform test`, Trivy, kustomize + helm render with kubeconform, docs check, gitleaks. **Each job checks only what a change can break** (2026-11-11): on a pull request, the first step of `terraform` and `manifests` asks [tools/ci-paths.sh](../../tools/ci-paths.sh) whether the change touches a path its check reads, and the rest of the job is skipped when it does not; the job still runs and reports, so the ruleset's required checks are unchanged. `docs-and-secrets` always runs. Every push to `main` and a weekly run check everything | Every check here runs without credentials. A docs-only pull request waited about 2 min for checks with nothing to check (PR #4, 2026-11-11). The skip sits inside each job because a workflow skipped by a path filter never reports its required check, which blocks the merge, and a job skipped because a job it needs failed counts as passed; a decision step that fails, fails its job. The weekly run catches a pinned download or a ruleset that broke outside the repo |
 | 22 | Git flow | Trunk-based on the public repo: a ruleset on `main` (PR, green checks, no force push or deletion), CODEOWNERS, a PR template, `v*` tags with release notes | One maintainer |
 | 23 | The laptop's memory (7.5 GB) | One kind cluster with one node; a base set always on (Argo CD, Envoy Gateway, cert-manager, ESO, metrics-server, monitoring, Loki); each drill's extra parts installed for the drill and removed after it | The whole set at once does not fit |
 
@@ -82,7 +82,7 @@ without an account is named as such.
 | C16 | Alert finds the fault | A fault injected in podinfo fires an alert in Alertmanager (time to fire recorded), the logs in Loki show the failing requests, and the alert resolves after the fix |
 | C17 | Canary | A faulty version is aborted by the analysis and rolled back; a good one is promoted |
 | C18 | Cost | Every price in the estimate traces to a price file and its date |
-| C19 | CI | The workflow is green on GitHub |
+| C19 | CI | The workflow is green on GitHub. On a pull request that changes no path a job checks, that job reports success with its checks skipped; on one that changes the workflow or the decision script, every job runs; the decision script fails, never skips, when it cannot read the change |
 | C20 | Export | The export's search gate exits 0 (private terms, addresses, gitleaks) |
 
 ## Not chosen
