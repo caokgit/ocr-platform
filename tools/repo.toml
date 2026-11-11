@@ -1,0 +1,21 @@
+# This repo's settings for the docs checker and the commit hook.
+
+[commit]
+# Paths whose changes need a "Spec: docs/<file>.md#<anchor>" trailer (AGENTS.md "Rule 0")
+implementation_paths = ["infra/", "pipelines/", "services/", "tools/"]
+
+[docs]
+# docs/ folders that keep their own README index; notes/ exists only in the public export
+self_indexed = ["learn", "runbooks", "journal", "notes"]
+# laid over the repo's root in the public export (docs/public-export.md#the-export-script)
+public_overlay = "public"
+
+[check]
+# Private addresses are written in this private repo (AGENTS.md "Writing"); the public export masks them
+ipv4 = "allow"
+# A lab record id in docs/learn/cdc-debezium-kafka.md is GUID-shaped; Azure resource id paths are always rejected
+guid = "allow"
+
+[mask]
+words_file = ".scratch_box/mask-words"
+label = "<box>"

@@ -119,7 +119,7 @@ sequenceDiagram
 From Git, Argo CD installed the GPU Operator in phase 1 and, in phase 2a, the data path (the CDC pipeline from
 Postgres through Kafka to the lakehouse): six applications, all healthy 3 min 17 s after a manual refresh. The
 Secrets and the namespace came from the laptop, and the Debezium server was applied by hand once before Argo CD
-adopted it ([the outcomes](../../README.md#the-outcomes-so-far)).
+adopted it ([the outcomes](../../README.md#built-so-far)).
 
 ## In this lab
 

@@ -1,7 +1,7 @@
 # The use case: template-driven document extraction
 
 The workload this lab is built around: what the business does, who is involved, how one document moves through the system,
-what "correct" means, and where the system falls short today. The [README](../README.md) sets the lab's goals against
+what "correct" means, and where the system falls short today. The [README](../README.md) sets the lab's problem statements and outcomes against
 these gaps.
 
 **The one idea: a brand's document, in the brand's own layout, is mapped onto the manufacturer's standard template,
@@ -211,4 +211,4 @@ changed over time.
 element), `review` 2,061 by the model's own doubt and 936
 forced by a rule. The `review` elements are the ones the system is unsure of, and the person checking is never told which they are.
 
-What the lab sets out to change, goal by goal: [the README](../README.md#the-goals).
+What the lab sets out to change, problem by problem: [the README](../README.md#problem-statements).

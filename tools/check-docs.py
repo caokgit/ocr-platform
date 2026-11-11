@@ -1,35 +1,55 @@
 #!/usr/bin/env python3
-"""Check the repo's Markdown (AGENTS.md "Writing" and "Safety and approvals").
+"""Check the repo's Markdown (AGENTS.md "Writing" and "Safety and approvals"); shared by the owner's repos.
 
     python3 tools/check-docs.py        # exit 1 if anything is wrong
 
+Always:
 - every relative link and #anchor resolves (GitHub anchor rules; headings in code blocks ignored)
 - no em dash
-- no secret-shaped strings: JWTs, GitHub tokens, private keys
-- internal (private) IPv4 addresses are allowed in the lab's private repo (AGENTS.md "Writing"); the public
-  export masks them
-- every page under docs/ is linked from its index: docs/README.md, or the README of a folder that keeps
-  its own index (learn/, runbooks/, journal/; notes/ exists only in the export, where public/docs becomes docs/,
-  so the public pages are index-checked by the export's own run)
+- no secret-shaped strings: JWTs, GitHub tokens, private keys, Azure keys and SAS signatures, Azure resource id paths
+- every page under docs/ is linked from its index: docs/README.md, or the README of a folder that keeps its own index
 - journal entries are named YYYY-MM-DD-<slug>.md
-- a link in public/ resolves as in the public export, where public/ lies over the repo's root
-  (docs/public-export.md#the-export-script)
+- in a sibling repo (method/VERSION exists), warnings only: a method file edited here and not pushed to the source, or
+  a source checkout holding a newer method (docs/specs/method.md in ml-init); a session ends with neither
 
-Skips gitignored folders (.scratch*, .toolchain, .venv).
+Per repo, from tools/repo.toml:
+- [docs] self_indexed: the docs/ folders that keep their own README index
+- [docs] public_overlay: a folder laid over the repo's root in a public export; its links resolve as in the export
+- [check] ipv4 = "forbid": no IPv4 address other than 127.0.0.1 and 0.0.0.0 ("allow" by default)
+- [check] guid = "forbid": no GUID, such as a subscription, tenant or workspace id ("allow" by default)
+
+Skips gitignored folders (.scratch*, .toolchain, .terraform, .venv).
 """
 
+import hashlib
+import os
 import re
+import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SKIP_PREFIXES = (".scratch", ".toolchain", ".venv", ".git", "node_modules")
+CONFIG_FILE = ROOT / "tools" / "repo.toml"
+CONFIG = tomllib.loads(CONFIG_FILE.read_text()) if CONFIG_FILE.exists() else {}
+DOCS_CONFIG = CONFIG.get("docs", {})
+CHECKS = CONFIG.get("check", {})
+
+SKIP_PREFIXES = (".scratch", ".toolchain", ".terraform", ".venv", ".git", ".claude", "node_modules")
 EM_DASH = "—"
 SECRETS = {
     "JWT-shaped string": re.compile(r"eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\."),
     "GitHub token": re.compile(r"\b(gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})"),
     "private key": re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
+    "Azure key or SAS signature": re.compile(r"(AccountKey|SharedAccessKey|sig)=[A-Za-z0-9%+/]{16,}"),
+    "Azure resource id path": re.compile(r"/subscriptions/[^/\s<>]+/resourceGroups/", re.I),
 }
+if CHECKS.get("guid") == "forbid":
+    SECRETS["GUID (an Azure id?)"] = re.compile(
+        r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b")
+if CHECKS.get("ipv4") == "forbid":
+    SECRETS["IPv4 address"] = re.compile(
+        r"\b(?!127\.0\.0\.1\b)(?!0\.0\.0\.0\b)\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b")
 
 
 def slug(heading):
@@ -55,18 +75,18 @@ def linked_targets(index):
     return out
 
 
-PUBLIC = ROOT / "public"
+PUBLIC = ROOT / DOCS_CONFIG["public_overlay"] if DOCS_CONFIG.get("public_overlay") else None
 
 
 def resolve(page, path):
-    """A link's target; from a public/ page, the export's view: public/ first, else the same path in the repo."""
+    """A link's target; from a public overlay page, the export's view: the overlay first, else the repo."""
     target = (page.parent / path).resolve()
-    if PUBLIC in page.parents and not target.exists() and PUBLIC in target.parents:
+    if PUBLIC and PUBLIC in page.parents and not target.exists() and PUBLIC in target.parents:
         return ROOT / target.relative_to(PUBLIC)
     return target
 
 
-SELF_INDEXED = ("learn", "runbooks", "journal", "notes")
+SELF_INDEXED = tuple(DOCS_CONFIG.get("self_indexed", ["learn", "runbooks", "journal"]))
 JOURNAL_NAME = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9-]+\.md$")
 
 
@@ -85,6 +105,47 @@ def index_gaps(files):
         if p.parent == docs / "journal" and not JOURNAL_NAME.match(p.name):
             gaps.append(f"{p.relative_to(ROOT)}: journal entries are named YYYY-MM-DD-<slug>.md")
     return gaps
+
+
+def sha256(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def method_drift():
+    """In a sibling repo: method files edited here and not pushed, and a newer method in the source (both warnings)."""
+    version = ROOT / "method" / "VERSION"
+    if not version.exists():
+        return [], []
+    problems, warnings = [], []
+    meta, synced = {}, []
+    for line in version.read_text().splitlines():
+        if re.match(r"^[0-9a-f]{64}  ", line):
+            digest, path = line.split("  ", 1)
+            synced.append((digest, path))
+        elif " " in line:
+            key, value = line.split(" ", 1)
+            meta[key] = value
+    edited = set()
+    for digest, path in synced:
+        f = ROOT / path
+        if not f.exists() or sha256(f.read_bytes()) != digest:
+            edited.add(path)
+            warnings.append(f"{path}: edited here, not yet in the source; run tools/sync-method.sh push \"<what changed>\"")
+    source = Path(os.path.expanduser(meta.get("source", "")))
+    if meta.get("source") and (source / "method" / "MANIFEST").exists():
+        manifest = [l.strip() for l in (source / "method" / "MANIFEST").read_text().splitlines()
+                    if l.strip() and not l.lstrip().startswith("#")]
+        ours = {path: digest for digest, path in synced}
+        for path in manifest:
+            shown = subprocess.run(["git", "-C", str(source), "show", f"HEAD:{path}"], capture_output=True)
+            if shown.returncode != 0:
+                continue
+            if ours.get(path) != sha256(shown.stdout):
+                if path in edited:
+                    warnings.append(f"{path}: changed both here and in the source ({meta['source']}); merge it by hand")
+                else:
+                    warnings.append(f"{path}: the source ({meta['source']}) has a newer version; run tools/sync-method.sh")
+    return problems, warnings
 
 
 def main():
@@ -111,9 +172,13 @@ def main():
             elif frag and target.is_file() and target.suffix == ".md" and frag not in anchors.get(target, set()):
                 problems.append(f"{rel}: missing anchor {link}")
     problems += index_gaps(files)
+    drift, warnings = method_drift()
+    problems += drift
     for line in problems:
         print(line)
-    print(f"{len(files)} files checked, {len(problems)} problem(s)")
+    for line in warnings:
+        print(f"warning: {line}")
+    print(f"{len(files)} files checked, {len(problems)} problem(s)" + (f", {len(warnings)} warning(s)" if warnings else ""))
     return 1 if problems else 0
 
 

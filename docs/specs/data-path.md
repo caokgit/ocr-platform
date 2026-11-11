@@ -2,7 +2,7 @@
 
 How the lab copies the client's OCR tables once, replays their history into its own Postgres, captures every change
 with Debezium into Kafka, and keeps them as versioned Iceberg tables from which the gold sets are cut. It delivers the
-phase 2a part of goals T2 and T4 ([the goals](../../README.md#the-goals)). The design notes behind it:
+phase 2a part of outcomes T2 and T4 ([the outcomes](../../README.md#outcomes)). The design notes behind it:
 [the WAL, the slot and Debezium](../notes/wal-slot-debezium.md), [the JDBC catalog](../notes/iceberg-jdbc-catalog.md),
 [object storage](../notes/object-storage.md), [Spark pod memory](../notes/spark-pod-memory.md),
 [GitOps and direct runs](../notes/gitops-and-direct-runs.md). How to run it: [the data path runbook](../runbooks/data-path.md).
