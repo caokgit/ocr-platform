@@ -1,0 +1,54 @@
+# MLflow: tracking and the registry; its records in the database mlflow on lab-pg, its files under
+# s3://lab-lake/mlflow/, proxied by the server (docs/specs/training-platform.md#decisions, rows 10 and 15).
+# The Secrets mlflow-db and mlflow-s3 are made by infra/scripts/lab-credentials.py, never in Git.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mlflow
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: ghcr.io/mlflow/charts            # an OCI chart: no oci:// prefix in Argo CD
+    chart: mlflow
+    targetRevision: 3.18.0
+    helm:
+      valuesObject:
+        fullnameOverride: mlflow
+        image:
+          repository: ghcr.io/mlflow/mlflow
+          tag: v3.18.0-full@sha256:a8459ca08b1e8a0dc287b4e226d4f2338f56052d7e2d333a4aa5891be0670919   # carries the Postgres driver and boto3; the index digest, read 2026-11-15
+        server:
+          value_options:
+            host: 0.0.0.0
+            port: 5000
+            workers: 1
+            # the default allows only localhost and private addresses; pods call it by its Service's name
+            allowed_hosts: "mlflow.mlflow.svc:5000,mlflow.mlflow.svc,localhost:5000,localhost,127.0.0.1:5000"
+        mlflow:
+          backendStoreUriFrom:
+            secretKeyRef: {name: mlflow-db, key: uri}
+          artifactsDestination: s3://lab-lake/mlflow
+        env:
+          # its GenAI job runner (eight huey consumers, about 250 MB each) is not needed for tracking and the registry
+          - {name: MLFLOW_SERVER_ENABLE_JOB_EXECUTION, value: "false"}
+          - {name: MLFLOW_S3_ENDPOINT_URL, value: "http://seaweedfs-all-in-one.lab-data.svc:8333"}
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom: {secretKeyRef: {name: mlflow-s3, key: AWS_ACCESS_KEY_ID}}
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom: {secretKeyRef: {name: mlflow-s3, key: AWS_SECRET_ACCESS_KEY}}
+        resources:
+          requests: {cpu: 100m, memory: 512Mi}
+          limits: {memory: 1Gi}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mlflow
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+    retry:
+      limit: 10
+      backoff: {duration: 15s, factor: 2, maxDuration: 3m}

@@ -61,6 +61,32 @@
       ansible.builtin.debug:
         msg: "{{ quiesce.stdout_lines | default(['k3s not running']) }}"
 
+    - name: Stop the running training workflows (their train pod ends its MLflow run as KILLED) and wait for their pods
+      ansible.builtin.shell:
+        cmd: |
+          k() { /usr/local/bin/k3s kubectl "$@"; }
+          ns={{ ml_namespace }}
+          k get namespace $ns >/dev/null 2>&1 || { echo "no running workflow"; exit 0; }
+          wfs=$(k get workflows -n $ns -o jsonpath='{range .items[?(@.status.phase=="Running")]}{.metadata.name}{"\n"}{end}' 2>/dev/null)
+          wfs="$wfs$(k get workflows -n $ns -o jsonpath='{range .items[?(@.status.phase=="Pending")]}{.metadata.name}{"\n"}{end}' 2>/dev/null)"
+          [ -z "$wfs" ] && { echo "no running workflow"; exit 0; }
+          echo "$wfs"
+          for w in $wfs; do k patch workflow $w -n $ns --type merge -p '{"spec":{"shutdown":"Stop"}}'; done
+          end=$(( $(date +%s) + {{ ml_stop_timeout_s }} ))
+          while [ -n "$(k get pods -n $ns --field-selector=status.phase=Running --no-headers 2>/dev/null)" ]; do
+            [ "$(date +%s)" -ge "$end" ] && { echo "pods still running after {{ ml_stop_timeout_s }} s"; break; }
+            sleep 5
+          done
+          k get workflows -n $ns --no-headers
+      register: ml_stop
+      changed_when: "'no running workflow' not in ml_stop.stdout"
+      become: true
+      when: k3s_state.stdout == 'active'
+
+    - name: Training stopped
+      ansible.builtin.debug:
+        msg: "{{ ml_stop.stdout_lines | default(['k3s not running']) }}"
+
     - name: Stop k3s
       ansible.builtin.systemd_service:
         name: k3s

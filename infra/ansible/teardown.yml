@@ -171,6 +171,16 @@
         path: ~/.ansible
         state: absent
 
+    - name: Step 11, ~/.local, made by the lab's first login (2026-10-23), whole while it holds only wireplumber's state
+      ansible.builtin.shell:
+        cmd: |
+          [ -d ~/.local ] || { echo "absent"; exit 0; }
+          other=$(find ~/.local -mindepth 1 ! -path "$HOME/.local/state" ! -path "$HOME/.local/state/wireplumber*" | wc -l)
+          [ "$other" -eq 0 ] || { echo "kept: $other other entries"; exit 0; }
+          rm -rf ~/.local && echo "removed"
+      register: local_dir
+      changed_when: "'removed' in local_dir.stdout"
+
     - name: Step 11, read what else is in ~/.ssh (ssh-copy-id created both it and authorized_keys for the lab, 2026-10-23)
       ansible.builtin.shell:
         cmd: |

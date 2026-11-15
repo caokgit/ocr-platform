@@ -47,6 +47,12 @@ spec:
         inherit: true
         connectionLimit: -1
         passwordSecret: {name: lab-pg-spark}
+      - name: mlflow                       # MLflow's backend store (docs/specs/training-platform.md, row 10)
+        ensure: present
+        login: true
+        inherit: true
+        connectionLimit: -1
+        passwordSecret: {name: lab-pg-mlflow}
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: Database
@@ -80,6 +86,17 @@ spec:
   cluster: {name: lab-pg}
   name: catalog
   owner: spark
+---
+# MLflow's backend store (docs/specs/training-platform.md#decisions, row 10).
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: mlflow
+  namespace: lab-data
+spec:
+  cluster: {name: lab-pg}
+  name: mlflow
+  owner: mlflow
 ---
 # Debezium reads this publication; FOR ALL TABLES in live is exactly the mirrored tables and lab_meta.
 apiVersion: postgresql.cnpg.io/v1

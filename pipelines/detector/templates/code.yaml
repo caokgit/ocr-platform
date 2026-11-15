@@ -1,0 +1,22 @@
+# The job's code and recipes, read from this chart's own files, so a run's code is exactly the synced commit.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: detector-code
+  labels: {lab/git-commit: {{ .Values.gitCommit | quote }}}
+data:
+{{- range $name := list "train.py" "gate_step.py" "gate.py" "labio.py" "requirements.txt" }}
+  {{ $name }}: |-
+{{ $.Files.Get $name | indent 4 }}
+{{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: detector-recipes
+  labels: {lab/git-commit: {{ .Values.gitCommit | quote }}}
+data:
+{{- range $path, $_ := .Files.Glob "recipes/*.yaml" }}
+  {{ base $path }}: |-
+{{ $.Files.Get $path | indent 4 }}
+{{- end }}

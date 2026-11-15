@@ -1,0 +1,26 @@
+# Kueue: the queue in front of the GPU; its pod integration is on by default and holds only pods labelled with a
+# queue (docs/specs/training-platform.md#decisions, rows 4 and 15). The chart's own controller limit (512 MiB) stays.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kueue
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: registry.k8s.io/kueue/charts     # an OCI chart: no oci:// prefix in Argo CD
+    chart: kueue
+    targetRevision: 0.20.6
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kueue-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 10
+      backoff: {duration: 15s, factor: 2, maxDuration: 3m}

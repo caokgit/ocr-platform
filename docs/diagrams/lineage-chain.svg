@@ -11,28 +11,28 @@
 <text x="34" y="182" fill="#1e293b">test split: 26 garment specs,</text>
 <text x="34" y="198" fill="#1e293b">341 pages (2026-11-01)</text>
 <text x="34" y="243" fill="#64748b" font-size="11">1 Data, built</text>
-<rect x="254" y="112" width="200" height="140" rx="8" fill="#ffffff" stroke="#334155" stroke-width="1.5" stroke-dasharray="6 3"/>
+<rect x="254" y="112" width="200" height="140" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
 <text x="264" y="131" font-weight="bold" fill="#0f172a">MLflow run</text>
 <text x="264" y="150" fill="#1e293b">records the dataset id,</text>
 <text x="264" y="166" fill="#1e293b">the commit, the image digest,</text>
 <text x="264" y="182" fill="#1e293b">the parameters</text>
 <text x="264" y="198" fill="#1e293b">makes: a run id</text>
-<text x="264" y="243" fill="#64748b" font-size="11">2 Training, 2b</text>
+<text x="264" y="243" fill="#64748b" font-size="11">2 Training, built 2b</text>
 <line x1="224" y1="182.0" x2="252" y2="182.0" stroke="#334155" stroke-width="1.5" marker-end="url(#ar)"/>
-<rect x="484" y="112" width="200" height="140" rx="8" fill="#ffffff" stroke="#334155" stroke-width="1.5" stroke-dasharray="6 3"/>
+<rect x="484" y="112" width="200" height="140" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
 <text x="494" y="131" font-weight="bold" fill="#0f172a">region-detector version N</text>
 <text x="494" y="150" fill="#1e293b">records the run id</text>
 <text x="494" y="166" fill="#1e293b">makes: the weights' hash</text>
 <text x="494" y="182" fill="#1e293b">and the version number</text>
-<text x="494" y="243" fill="#64748b" font-size="11">3 Registry, 2b</text>
+<text x="494" y="243" fill="#64748b" font-size="11">3 Registry, built 2b</text>
 <line x1="454" y1="182.0" x2="482" y2="182.0" stroke="#334155" stroke-width="1.5" marker-end="url(#ar)"/>
-<rect x="714" y="112" width="200" height="140" rx="8" fill="#ffffff" stroke="#334155" stroke-width="1.5" stroke-dasharray="6 3"/>
+<rect x="714" y="112" width="200" height="140" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
 <text x="724" y="131" font-weight="bold" fill="#0f172a">Gate report</text>
 <text x="724" y="150" fill="#1e293b">version N against @champion</text>
 <text x="724" y="166" fill="#1e293b">on the test split:</text>
-<text x="724" y="182" fill="#1e293b">mAP@50 and recall,</text>
+<text x="724" y="182" fill="#1e293b">mAP@50-95 and recall,</text>
 <text x="724" y="198" fill="#1e293b">passed or failed</text>
-<text x="724" y="243" fill="#64748b" font-size="11">3 Gate, 2b</text>
+<text x="724" y="243" fill="#64748b" font-size="11">3 Gate, built 2b</text>
 <line x1="684" y1="182.0" x2="712" y2="182.0" stroke="#334155" stroke-width="1.5" marker-end="url(#ar)"/>
 <rect x="944" y="112" width="200" height="140" rx="8" fill="#ffffff" stroke="#334155" stroke-width="1.5" stroke-dasharray="6 3"/>
 <text x="954" y="131" font-weight="bold" fill="#0f172a">Triton deployment</text>

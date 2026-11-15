@@ -1,0 +1,26 @@
+# The production detector's recipe: the train_args of the production weights (Ultralytics 8.4.142, 2026-09-07),
+# read from the checkpoint without executing it on 2026-11-15 (docs/specs/training-platform.md#decisions, row 9).
+# Written: every value that differs from 8.4.142's defaults, and the reproducibility switches; every other
+# argument of the checkpoint equals 8.4.142's default (checked the same day). Left out: the run's own fields
+# (data, device, project, name), which the template sets. workers: 8 in production, set by the template.
+model: yolo26n.pt          # production: ul://ultralytics/yolo26/yolo26n, the same base on Ultralytics Platform
+epochs: 200
+patience: 50
+batch: 8
+imgsz: 640
+seed: 0
+deterministic: true
+single_cls: true
+cos_lr: true
+close_mosaic: 15
+max_det: 50
+lr0: 0.003
+warmup_bias_lr: 0.0
+cls: 0.2
+cls_pw: 1
+hsv_h: 0
+hsv_s: 0.2
+hsv_v: 0.3
+scale: 0.3
+fliplr: 0
+mosaic: 0.4

@@ -30,6 +30,7 @@ flowchart LR
 | 5 | GPU box bootstrap: k3s, GPU Operator, Argo CD | Once per box | As stage 2 | Auto to preview, **Manual** to change | [gpu-box-bootstrap](gpu-box-bootstrap.md) | 2026-10-30 |
 | 6 | Lab session: start, work, stop | Every session | As stage 2 | **Manual** for start and stop | [lab-session](lab-session.md) | 2026-10-30 |
 | 7 | Data path: snapshot, load, replay, CDC, Iceberg, gold sets | Snapshot per copy; fill per need | Office, or home with the VPN **on** (the box); the client's databases per their access rule | Auto for the snapshot, **Manual** for the box | [data-path](data-path.md) | 2026-11-01 (step 1) |
+| 7b | Training platform: Argo Workflows, Kueue, MLflow; register production, train, gate, promote | Install once; a training per need | Office, or home with the VPN **on** (the box); VPN **off** to push | Auto to preview, **Manual** for the box (2026-11-15: Auto by the owner's choice) | [training-platform](training-platform.md) | 2026-11-15 |
 | 8 | Teardown: the box as if the lab never existed | Once, at the end | As stage 2 | Auto to scan and preview, **Manual** to remove | [gpu-box-teardown](gpu-box-teardown.md) | 2026-10-30 (scan and preview) |
 | 10 | AWS track: Terraform checks, LocalStack, kind with the platform, the drills | Per change, per drill | Anywhere; VPN **off** from home (downloads) | Auto (all local) | [aws-track](aws-track.md) | 2026-11-03 (toolchain) |
 

@@ -244,6 +244,42 @@ Check: one word in the file, and the box's name comes back as `<box>`.
 If you see the box's real name in any output: this file is missing or the command skipped the mask
 ([row](../known-failure-modes.md), 2026-10-30, names).
 
+### 7. Turn the VPN on and off from WSL (home)
+
+Why: from home the box needs the VPN on and GitHub needs it off ([the rows below](#when-the-box-cannot-be-reached)),
+so a session toggles it often; Windows' own `rasdial.exe`, called from WSL, does it without the owner. The office VPN is
+Windows' built-in VPN client (PPTP, MS-CHAPv2, read 2026-10-25, [wsl-networking](../notes/wsl-and-a-full-tunnel-vpn.md)).
+
+Once per laptop, the owner writes the VPN's user name and password into a gitignored file, mode 600, one per line,
+never through the agent or the chat (in VS Code, or in a terminal with a hidden prompt):
+
+```bash
+mkdir -p .scratch_vpn && chmod 700 .scratch_vpn && (umask 077; read -r -p 'VPN user: ' u; read -r -s -p 'VPN password: ' p; echo; printf '%s\n%s\n' "$u" "$p" > .scratch_vpn/office-vpn)
+```
+
+Then, in any session (the file read inside the command, the password filtered out of the output, never printed):
+
+```bash
+vpn_on()  { local u p; { read -r u; read -r p; } < .scratch_vpn/office-vpn; u=${u%$'\r'}; p=${p%$'\r'}
+            rasdial.exe "<office-vpn>" "$u" "$p" 2>&1 | tr -d '\r' | grep -v -F -e "$p" | tail -2; }
+vpn_off() { rasdial.exe "<office-vpn>" /disconnect 2>&1 | tr -d '\r' | tail -1; }
+vpn_on && ssh -F .scratch_ssh/config gpu-box-relay 'echo box-reached' 2>&1 | python3 tools/mask.py
+```
+
+Output (REAL, 2026-11-15 12:05, home):
+
+```text
+Successfully connected to <office-vpn>.
+Command completed successfully.
+box-reached
+```
+
+Check: `rasdial.exe` with no argument lists `<office-vpn>` when on, `No connections` when off.
+If you see `Remote Access error 645 - There was an internal authentication error`: `rasdial "<office-vpn>"` was run
+without a user name and password; it cannot use the sign-in saved by Windows' Settings app, nor the one saved by its
+classic dial dialog (`rasphone -d`), both tried on 2026-11-15; give them from the file ([row](../known-failure-modes.md)).
+Mind: the password sits briefly on the Windows command line of `rasdial.exe` while it connects.
+
 ## Verify end to end
 
 ```bash
@@ -269,6 +305,7 @@ The measurements behind these rows, with the test that told them apart:
 
 | Step | Undo |
 |---|---|
+| 7 | `rm -r .scratch_vpn` (the VPN connection itself is Windows', left as it is) |
 | 6 | `rm .scratch_box/mask-words` |
 | 5 | On the box: `sudo rm /etc/sudoers.d/$(whoami)` (the lab's teardown does it last) |
 | 4 | Admin PowerShell: `netsh interface portproxy delete v4tov4 listenaddress=127.0.0.1 listenport=2222` |

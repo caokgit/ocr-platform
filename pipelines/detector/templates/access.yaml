@@ -1,0 +1,74 @@
+# Who may do what in ai-team (docs/specs/training-platform.md#security-and-tenancy, decision 13):
+# the workflow pods' ServiceAccount, with only what Argo's executor needs; the AI engineer's own identity,
+# which submits from the templates and reads results, and nothing else (no Secret, no pod made directly).
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: train-detector}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {name: train-detector}
+rules:
+  - apiGroups: [argoproj.io]
+    resources: [workflowtaskresults]
+    verbs: [create, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: {name: train-detector}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: train-detector}
+subjects: [{kind: ServiceAccount, name: train-detector}]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: ai-engineer}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ai-engineer-token
+  annotations: {kubernetes.io/service-account.name: ai-engineer}
+type: kubernetes.io/service-account-token
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {name: ai-engineer}
+rules:
+  - apiGroups: [argoproj.io]
+    resources: [workflows]
+    verbs: [create, get, list, watch]
+  - apiGroups: [argoproj.io]
+    resources: [workflowtemplates]
+    verbs: [get, list]
+  - apiGroups: [""]
+    resources: [pods, pods/log, events]
+    verbs: [get, list, watch]
+  - apiGroups: [kueue.x-k8s.io]
+    resources: [workloads, localqueues]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: {name: ai-engineer}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: ai-engineer}
+subjects: [{kind: ServiceAccount, name: ai-engineer}]
+---
+# Egress only to DNS, MLflow, SeaweedFS's S3 port, the Kubernetes API (Argo's executor) and public HTTPS (PyPI
+# for the pinned packages); no ingress.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: ai-team}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  egress:
+    - to: [{namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kube-system}}}]
+      ports: [{port: 53, protocol: UDP}, {port: 53, protocol: TCP}]
+    - to: [{namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: mlflow}}}]
+      ports: [{port: 5000, protocol: TCP}]
+    - to: [{namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: lab-data}}}]
+      ports: [{port: 8333, protocol: TCP}]
+    - to: [{ipBlock: {cidr: {{ .Values.apiServer.serviceIP }}/32}}, {ipBlock: {cidr: {{ .Values.apiServer.nodeIP }}/32}}]
+      ports: [{port: 443, protocol: TCP}, {port: 6443, protocol: TCP}]
+    - to: [{ipBlock: {cidr: 0.0.0.0/0, except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16]}}]
+      ports: [{port: 443, protocol: TCP}]

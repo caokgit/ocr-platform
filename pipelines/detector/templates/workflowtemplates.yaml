@@ -1,0 +1,104 @@
+# The AI engineer's one command (T8): argo submit -n ai-team --from workflowtemplate/train-detector
+#   -p dataset=<id> -p recipe=<name> [-p epochs=<n>]
+# train (1 GPU, queued by Kueue) then gate (CPU, not queued); gate-detector also runs alone to score a version
+# (docs/specs/training-platform.md#the-job, decisions 1, 4, 5, 14).
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: train-detector
+  labels: {lab/git-commit: {{ .Values.gitCommit | quote }}}
+spec:
+  serviceAccountName: train-detector
+  entrypoint: main
+  podMetadata:
+    labels: {lab/git-commit: {{ .Values.gitCommit | quote }}}
+  securityContext: {runAsNonRoot: true, runAsUser: 1000, runAsGroup: 1000, fsGroup: 1000}
+  arguments:
+    parameters:
+      - {name: dataset, value: {{ .Values.dataset | quote }}}
+      - {name: recipe, value: production}
+      - {name: epochs, value: ""}
+      - {name: split, value: by-document}   # as-copy: diagnostic only, never promotable (spec, row 16)
+      - {name: min_free_mib, value: "0"}   # may only raise the card's floor (decision 5); E11 sets it high
+  volumes:
+{{ include "detector.volumes" . | indent 4 }}
+  templates:
+    - name: main
+      dag:
+        tasks:
+          - name: train
+            template: train
+          - name: gate
+            depends: train
+            templateRef: {name: gate-detector, template: gate}
+            arguments:
+              parameters:
+                - {name: candidate, value: "{{`{{tasks.train.outputs.parameters.version}}`}}"}
+                - {name: dataset, value: "{{`{{workflow.parameters.dataset}}`}}"}
+    - name: train
+      metadata:
+        labels: {kueue.x-k8s.io/queue-name: {{ .Values.queue }}}
+      podSpecPatch: '{"runtimeClassName": "nvidia"}'
+      retryStrategy: {limit: 1, retryPolicy: OnError}
+      activeDeadlineSeconds: 21600
+      outputs:
+        parameters:
+          - name: version
+            valueFrom: {path: /tmp/version}
+      container:
+        image: {{ .Values.image }}
+        command:
+{{ include "detector.run" "train.py" | indent 10 }}
+        env:
+{{ include "detector.env" . | indent 10 }}
+          - {name: DATASET, value: "{{`{{workflow.parameters.dataset}}`}}"}
+          - {name: RECIPE, value: "{{`{{workflow.parameters.recipe}}`}}"}
+          - {name: MLFLOW_EXPERIMENT_NAME, value: region-detector}   # else Ultralytics' callback names it after the project folder
+          - {name: EPOCHS, value: "{{`{{workflow.parameters.epochs}}`}}"}
+          - {name: SPLIT, value: "{{`{{workflow.parameters.split}}`}}"}
+          - {name: WORKERS, value: {{ .Values.workers | quote }}}
+          - {name: MIN_FREE_MIB, value: {{ .Values.minFreeMiB | quote }}}
+          - {name: MIN_FREE_MIB_REQUEST, value: "{{`{{workflow.parameters.min_free_mib}}`}}"}
+          - {name: BASE_WEIGHTS_KEY, value: {{ .Values.baseWeights.key | quote }}}
+          - {name: BASE_WEIGHTS_SHA256, value: {{ .Values.baseWeights.sha256 | quote }}}
+        volumeMounts:
+{{ include "detector.mounts" . | indent 10 }}
+        resources: {{ toJson .Values.train.resources }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: gate-detector
+  labels: {lab/git-commit: {{ .Values.gitCommit | quote }}}
+spec:
+  serviceAccountName: train-detector
+  entrypoint: gate
+  podMetadata:
+    labels: {lab/git-commit: {{ .Values.gitCommit | quote }}}
+  securityContext: {runAsNonRoot: true, runAsUser: 1000, runAsGroup: 1000, fsGroup: 1000}
+  arguments:
+    parameters:
+      - {name: candidate}
+      - {name: dataset, value: {{ .Values.dataset | quote }}}
+  volumes:
+{{ include "detector.volumes" . | indent 4 }}
+  templates:
+    - name: gate
+      inputs:
+        parameters:
+          - {name: candidate}
+          - {name: dataset}
+      activeDeadlineSeconds: 3600
+      container:
+        image: {{ .Values.image }}
+        command:
+{{ include "detector.run" "gate_step.py" | indent 10 }}
+        env:
+{{ include "detector.env" . | indent 10 }}
+          - {name: CANDIDATE, value: "{{`{{inputs.parameters.candidate}}`}}"}
+          - {name: DATASET, value: "{{`{{inputs.parameters.dataset}}`}}"}
+          - {name: MARGINS, value: {{ .Values.margins | quote }}}
+          - {name: CUDA_VISIBLE_DEVICES, value: ""}
+        volumeMounts:
+{{ include "detector.mounts" . | indent 10 }}
+        resources: {{ toJson .Values.gate.resources }}

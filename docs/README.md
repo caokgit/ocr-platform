@@ -18,6 +18,7 @@ here to find a page.
 | [specs/ml-platform.md](specs/ml-platform.md) | The concept design of the whole platform: its users and interfaces, every layer built or planned, the lineage chain, the plan for the two GPUs, acceptance by phase |
 | [specs/gpu-box-platform.md](specs/gpu-box-platform.md) | Spec, phase 1: k3s, the GPU Operator and Argo CD on the shared machine next to the AI team's Docker; lab-up, lab-down, teardown, acceptance A1 to A11 |
 | [specs/data-path.md](specs/data-path.md) | Spec, phase 2a: snapshot, replay, CDC, Kafka, Iceberg on SeaweedFS, gold sets; acceptance B1 to B16 |
+| [specs/training-platform.md](specs/training-platform.md) | Spec, phase 2b: one job template on Argo Workflows, a GPU queue with Kueue, MLflow tracking and registry, the promotion gate; acceptance E1 to E14 |
 | [specs/aws-track.md](specs/aws-track.md) | Spec, the AWS track: Terraform for AWS (LocalStack and a mocked apply), the kind and EKS overlays, the operations drills; acceptance C1 to C20 |
 | [aws-cost-estimate.md](aws-cost-estimate.md) | What the AWS track's dev design costs a month, from AWS's public price list, by scenario |
 | [specs/dataset-intake.md](specs/dataset-intake.md) | Spec: how the detector dataset enters the lab, its output and acceptance checks |
@@ -41,13 +42,14 @@ inherits. Each links to the spec, runbooks and design notes that hold the facts.
 |---|---|
 | [phases/phase-1-gpu-box.md](phases/phase-1-gpu-box.md) | Phase 1: k3s, the GPU Operator and Argo CD on the shared machine |
 | [phases/phase-2a-data-path.md](phases/phase-2a-data-path.md) | Phase 2a: the client's OCR tables copied once, replayed through Debezium and Kafka into Iceberg, and cut into the gold sets |
+| [phases/phase-2b-training-platform.md](phases/phase-2b-training-platform.md) | Phase 2b: the AI team's training layer: one command, a GPU queue, MLflow, the gate, and what an honest retrain showed about production's scores |
 | [phases/aws-track.md](phases/aws-track.md) | The AWS track: the platform written for AWS and EKS, proven by a mocked apply, LocalStack, kind and measured drills |
 
 ## Design notes
 
 | Page | What it holds |
 |---|---|
-| [notes/](notes/README.md) | Nine engineering questions the lab settled, each with its real values |
+| [notes/](notes/README.md) | Ten engineering questions the lab settled, each with its real values |
 
 ## Keeping this index complete
 

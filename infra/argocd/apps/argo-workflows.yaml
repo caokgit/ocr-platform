@@ -1,0 +1,46 @@
+# Argo Workflows: the controller and the server, which run the AI team's training templates
+# (docs/specs/training-platform.md#decisions, rows 1 and 15). The chart sets no memory by default, so the lab
+# sets each; the workflow pods' identity is the detector chart's, not the chart's own.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argo-workflows
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://argoproj.github.io/argo-helm
+    chart: argo-workflows
+    targetRevision: 2.0.18
+    helm:
+      valuesObject:
+        controller:
+          workflowNamespaces: [ai-team]
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {memory: 256Mi}
+        server:
+          authModes: [server]                # reached only through kubectl port-forward
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {memory: 256Mi}
+        executor:                            # also the init container; 128Mi was OOM-killed once (2026-11-15)
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {memory: 256Mi}
+        workflow:
+          rbac: {create: false}
+          serviceAccount: {create: false}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argo
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 10
+      backoff: {duration: 15s, factor: 2, maxDuration: 3m}

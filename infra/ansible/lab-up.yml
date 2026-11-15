@@ -88,6 +88,70 @@
       ansible.builtin.debug:
         msg: "{{ data_pods.stdout_lines | default(['check mode: not read']) }}"
 
+    - name: Reserve the AI team's GPU in Kubernetes (a placeholder pod on device minor {{ gpu_reserve_minor }}), recreated until it holds that card
+      ansible.builtin.shell:
+        cmd: |
+          k() { /usr/local/bin/k3s kubectl "$@"; }
+          ns={{ gpu_reserve_namespace }}; pod=ai-team-docker-gpu0; want=/dev/nvidia{{ gpu_reserve_minor }}
+          k get namespace $ns >/dev/null 2>&1 || k create namespace $ns >/dev/null
+          for try in 1 2 3 4 5 6; do
+            if k get pod $pod -n $ns >/dev/null 2>&1; then
+              k wait --for=condition=Ready pod/$pod -n $ns --timeout=90s >/dev/null 2>&1 || true
+              if k exec $pod -n $ns -- test -e $want 2>/dev/null; then
+                echo "$pod holds $want ($(k exec $pod -n $ns -- ls /dev | grep -E '^nvidia[0-9]+$' | tr '\n' ' ')), try $try"; exit 0
+              fi
+              echo "try $try: $pod holds $(k exec $pod -n $ns -- ls /dev 2>/dev/null | grep -E '^nvidia[0-9]+$' | tr '\n' ' ')"
+              k delete pod $pod -n $ns --wait=true >/dev/null
+            fi
+            k apply -f - >/dev/null <<EOF
+          apiVersion: v1
+          kind: Pod
+          metadata: {name: $pod, namespace: $ns, labels: {lab/role: gpu-reserve}}
+          spec:
+            runtimeClassName: nvidia
+            restartPolicy: Always
+            containers:
+              - name: hold
+                image: {{ gpu_reserve_image }}
+                command: [sleep, infinity]
+                resources: {limits: {nvidia.com/gpu: 1, memory: 64Mi}, requests: {cpu: 1m, memory: 32Mi}}
+          EOF
+          done
+          echo "could not place $pod on $want"; exit 1
+      register: gpu_reserve
+      changed_when: "', try 1' not in gpu_reserve.stdout"
+      become: true
+      when: not ansible_check_mode
+
+    - name: GPU reservation
+      ansible.builtin.debug:
+        msg: "{{ gpu_reserve.stdout_lines | default(['check mode: not run']) }}"
+
+    - name: Wait for the training platform's services (Argo Workflows, Kueue, MLflow) to be Ready
+      ansible.builtin.shell:
+        cmd: |
+          k() { /usr/local/bin/k3s kubectl "$@"; }
+          end=$(( $(date +%s) + {{ data_ready_timeout_s }} ))
+          for ns in {{ ml_service_namespaces | join(' ') }}; do
+            k get namespace $ns >/dev/null 2>&1 || { echo "no $ns namespace"; continue; }
+            while :; do
+              pods=$(k get pods -n $ns -l '!job-name' --no-headers 2>/dev/null)
+              notready=$(echo "$pods" | awk 'NF && ($3 != "Running" || split($2, r, "/") && r[1] != r[2])' | wc -l)
+              [ -n "$pods" ] && [ "$notready" -eq 0 ] && break
+              [ "$(date +%s)" -ge "$end" ] && { echo "$pods"; echo "$ns not ready after {{ data_ready_timeout_s }} s"; exit 1; }
+              sleep 10
+            done
+            echo "$pods" | sed "s/^/$ns  /"
+          done
+      register: ml_pods
+      changed_when: false
+      become: true
+      when: not ansible_check_mode
+
+    - name: The training platform's pods
+      ansible.builtin.debug:
+        msg: "{{ ml_pods.stdout_lines | default(['check mode: not read']) }}"
+
     - name: Node
       ansible.builtin.debug:
         msg: "{{ nodes.stdout | default('check mode: not started') }}"
