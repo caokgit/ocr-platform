@@ -122,6 +122,7 @@ the work changes. The rule, by kind of work:
   | psql (the client's dev and stg Postgres) | `PGSERVICEFILE=$PWD/.scratch_pg/pg_service.conf PGPASSFILE=$PWD/.scratch_pg/pgpass`, then `psql service=<name>` |
   | Ultralytics (every run of the package; the key only if asked for one) | `YOLO_CONFIG_DIR=$PWD/.scratch_ultralytics ULTRALYTICS_API_KEY="$(tr -d ' \r\n' < .scratch_ultralytics/api_key)"`; the settings folder variable is named in Ultralytics' own warning message ([log](https://huggingface.co/spaces/Docfile/Yv), [settings](https://docs.ultralytics.com/usage/settings), 2026-10-23); confirmed 2026-10-25: settings land in `.scratch_ultralytics/Ultralytics/settings.json`, where `sync` (usage analytics) is set to `False`. Without the variable, the package writes `~/.config/Ultralytics/` ([known failure modes](docs/known-failure-modes.md)) |
   | Ansible | `ANSIBLE_CONFIG=$PWD/infra/ansible/ansible.cfg ANSIBLE_HOME=$PWD/.scratch_ansible`, run as `.venv/bin/ansible-playbook` ([laptop setup](docs/runbooks/laptop-setup.md#6-ansible-in-venv)) |
+  | The office VPN (Windows' client, from WSL) | `.scratch_vpn/office-vpn`: the user name and the password, one per line, written by the owner, read only inside `rasdial.exe`'s command ([reach the box, step 7](docs/runbooks/reach-the-box.md#7-turn-the-vpn-on-and-off-from-wsl-home)) |
   | ssh (laptop to GPU box) | `ssh -F $PWD/.scratch_ssh/config gpu-box` (key, known_hosts and address all in `.scratch_ssh/`) |
 
   Credential files are mode 600.
@@ -137,7 +138,10 @@ the moment plan mode exits, and tell the owner. Decisions that survive go into [
 
 - **Network reach** (owner, confirmed 2026-10-31): **at home, the office VPN is needed for the GPU box; at the office, it
   is not.** The client's systems have their own access rule, in the lab's private data access runbook. Before any
-  access, ask where the owner is and, from home, to turn the VPN on.
+  access, ask where the owner is; from home, **the agent turns the VPN on and off itself** with Windows' `rasdial.exe`
+  and the owner's credential file (owner, 2026-11-15;
+  [reach the box, step 7](docs/runbooks/reach-the-box.md#7-turn-the-vpn-on-and-off-from-wsl-home)), and asks the
+  owner only when the file is missing.
 - **GPU box:** before each step on the box, show the change (`--check --diff` for a playbook), name the
   runbook section it will land in, and wait for the owner's go (owner, 2026-10-30). Box facts go to the lab's
   machine page with credentials and the hostname left out.
@@ -168,9 +172,11 @@ the moment plan mode exits, and tell the owner. Decisions that survive go into [
 - **No `Co-Authored-By` or other AI attribution lines** (the hook rejects them).
 - Never `--no-verify`. Push without asking only when it is a fast-forward of `main`.
 - **The VPN at home and the internet** (owner, 2026-10-30): with the VPN on, GitHub and most web fetches
-  failed or hung from WSL until 2026-10-30; on 2026-11-07 pushes and fetches worked with it on. If one hangs,
-  the agent commits locally, keeps working, and tells the owner when the VPN must go off: to push, or to search and
-  read sources on the web, instead of failing quietly or working around it. From the office, or at home with the VPN off, it pushes as it goes.
+  failed or hung from WSL until 2026-10-30; on 2026-11-07 pushes and fetches worked with it on, on 2026-11-15
+  GitHub and ghcr.io timed out again. If one hangs, the agent commits locally, keeps working, and turns the VPN off
+  for the push or the web search and on again itself with `rasdial` (the step above), never another route around it
+  (a proxy through the machine); without the credential file it tells the owner when the VPN must go off. From the
+  office, or at home with the VPN off, it pushes as it goes.
 - The lab's repo stays **private**. This public showcase is a separate repo with fresh history, exported
   from allowlisted paths and checked against the lab's publishing spec first. The public repo is pushed by the owner only.
 

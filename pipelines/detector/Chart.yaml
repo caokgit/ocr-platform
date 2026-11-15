@@ -1,0 +1,8 @@
+# The training platform's job, as a Helm chart that Argo CD renders from GitHub
+# (docs/specs/training-platform.md#decisions, row 6): the two WorkflowTemplates, the code as ConfigMaps, the
+# ai-team namespace's identities and NetworkPolicy.
+apiVersion: v2
+name: detector
+description: Train the region detector from a dataset id, register it, gate it against @champion
+type: application
+version: 0.1.0

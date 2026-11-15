@@ -15,3 +15,4 @@ are written from what was built and measured; the [README](../../README.md) says
 | 7 | [Sizing a Spark pod on Kubernetes: heap plus overhead](spark-pod-memory.md) | Why Spark pods were `OOMKilled` with room in the heap, and how the sizes were fixed inside the same budget |
 | 8 | [GPUs in Kubernetes on the machine's own driver](gpus-on-the-hosts-driver.md) | How a cluster schedules GPUs that another team's Docker already uses, without a second driver, and what Kubernetes cannot see |
 | 9 | [Reaching a lab machine from WSL through a full-tunnel VPN](wsl-and-a-full-tunnel-vpn.md) | Why WSL lost its packets with the office VPN on, and the two changes that made the agent and the machine reachable |
+| 10 | [A promotion gate on 26 documents](promotion-gate.md) | Why a model faces a gate after validation picked its epoch, why the rule is "not worse" on an interval over documents, and how the margin was measured before any model was judged |

@@ -1,0 +1,26 @@
+# Values of the detector chart (docs/specs/training-platform.md). gitCommit is set by Argo CD from its build
+# environment ($ARGOCD_APP_REVISION, infra/argocd/apps/detector.yaml); the rest are the spec's choices.
+gitCommit: unknown
+image: docker.io/ultralytics/ultralytics:8.4.142@sha256:75653076524f6fbe45d0c0a530b6807cd1ed4e14d0c8e49804dd9e54f550a831
+queue: ai-team                      # Kueue LocalQueue (row 4); only the train pod carries it
+mlflowUri: http://mlflow.mlflow.svc:5000
+s3Endpoint: http://seaweedfs-all-in-one.lab-data.svc:8333
+s3Secret: train-s3                  # read-only identity, made by infra/scripts/lab-credentials.py
+dataset: 2026-09-24-4a208a33d4ca    # the default dataset id
+baseWeights:
+  key: models/base/yolo26n.pt
+  sha256: 9b09cc8bf347f0fc8a5f7657480587f25db09b34bf33b0652110fb03a8ad4fef   # equals the GitHub asset digest of ultralytics/assets v8.4.0, 2026-11-15
+minFreeMiB: 4096                    # the train pod's floor on its card (row 5), revised after the first run
+workers: 4                          # production used 8 (row 9)
+margins: "0.02,0.02"                # the gate's m1, m2 (spec: the gate)
+train:
+  resources:
+    requests: {cpu: "2", memory: 4Gi, nvidia.com/gpu: 1}
+    limits: {cpu: "4", memory: 6Gi, nvidia.com/gpu: 1}
+gate:
+  resources:
+    requests: {cpu: "2", memory: 2Gi}
+    limits: {cpu: "4", memory: 3Gi}
+apiServer:                          # the NetworkPolicy's way to the API: the Service, and the node it leads to
+  serviceIP: 10.43.x.x
+  nodeIP: 192.168.x.x

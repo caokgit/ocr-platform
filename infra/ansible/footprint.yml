@@ -20,20 +20,25 @@
       changed_when: false
       check_mode: false
 
-    - name: Mask it (and drop the carriage returns ssh's terminal adds)
-      ansible.builtin.shell:
-        cmd: tr -d '\r' | python3 {{ playbook_dir }}/../../tools/mask.py
-        stdin: "{{ footprint.stdout }}"
+    # The scan can run to 100,000 lines (18 MB on 2026-11-15); fed to mask.py through the shell module's stdin it
+    # deadlocked (both pipes full), so it is masked from a file instead, and the unmasked file removed at once.
+    - name: Keep the raw scan in a mode-600 file on the laptop, briefly
+      ansible.builtin.copy:
+        content: "{{ footprint.stdout }}"
+        dest: "{{ out_dir }}/.footprint-raw.txt"
+        mode: "0600"
       delegate_to: localhost
-      register: masked
       changed_when: false
       check_mode: false
 
-    - name: Save it on the laptop (it names the AI team's paths, so it stays out of the repo)
-      ansible.builtin.copy:
-        content: "{{ masked.stdout }}\n"
-        dest: "{{ out_dir }}/{{ now(fmt='%Y-%m-%d-%H%M') }}-footprint-{{ label }}.txt"
-        mode: "0600"
+    - name: Save it masked (it names the AI team's paths, so it stays out of the repo), then remove the raw file
+      ansible.builtin.shell:
+        cmd: |
+          set -e
+          dest="{{ out_dir }}/{{ now(fmt='%Y-%m-%d-%H%M') }}-footprint-{{ label }}.txt"
+          (umask 077; tr -d '\r' < "{{ out_dir }}/.footprint-raw.txt" | python3 {{ playbook_dir }}/../../tools/mask.py > "$dest")
+          rm -f "{{ out_dir }}/.footprint-raw.txt"
+          echo "$dest"
       delegate_to: localhost
       register: saved
       changed_when: false
@@ -41,4 +46,4 @@
 
     - name: Where it is
       ansible.builtin.debug:
-        msg: "saved: {{ saved.dest | relpath(playbook_dir ~ '/../..') }}"
+        msg: "saved: {{ saved.stdout | relpath(playbook_dir ~ '/../..') }}"

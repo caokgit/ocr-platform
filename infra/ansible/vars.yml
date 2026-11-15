@@ -14,7 +14,7 @@ k3s_ports:                      # every port k3s listens on outside 127.0.0.1 (r
   - {port: 8472, proto: udp}      # Flannel VXLAN
 
 # Pre-checks: the lab starts only when the box has room (docs/specs/gpu-box-platform.md#ansible-playbooks)
-min_mem_available_mib: 10240     # 6144 before the data path (docs/specs/data-path.md#box-budget)
+min_mem_available_mib: 12288     # 6144 before the data path, 10240 before 2b (docs/specs/training-platform.md#box-budget)
 min_root_free_gb: 5
 min_data_free_gb: 50
 
@@ -22,3 +22,11 @@ min_data_free_gb: 50
 data_namespace: lab-data
 data_ready_timeout_s: 600
 data_quiesce_timeout_s: 120
+
+# The training platform (docs/specs/training-platform.md#lab-down-and-lab-up)
+ml_namespace: ai-team
+ml_service_namespaces: [argo, kueue-system, mlflow]
+ml_stop_timeout_s: 120
+gpu_reserve_namespace: gpu-reserve
+gpu_reserve_minor: 0                 # the AI team's card (docs/specs/training-platform.md#decisions, row 5)
+gpu_reserve_image: docker.io/library/busybox:1.37@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec

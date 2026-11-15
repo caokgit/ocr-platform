@@ -1,0 +1,41 @@
+# The AI team's namespace with its budget, and MLflow's (docs/specs/training-platform.md#box-budget).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ai-team
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: budget
+  namespace: ai-team
+spec:
+  hard:
+    limits.memory: 32Gi          # counts gated pods too: four queued train pods and a gate; GPU and real use: Kueue's
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: defaults
+  namespace: ai-team
+spec:
+  limits:
+    - type: Container
+      default: {memory: 256Mi}
+      defaultRequest: {memory: 64Mi}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mlflow
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: defaults
+  namespace: mlflow
+spec:
+  limits:
+    - type: Container
+      default: {memory: 256Mi}
+      defaultRequest: {memory: 64Mi}

@@ -8,8 +8,8 @@ flowchart LR
   subgraph base["GPU Kubernetes on a shared machine: k3s, GPU Operator, Argo CD"]
     direction LR
     data["Versioned data<br/>CDC into Iceberg"]:::built
-    train["Training<br/>jobs, GPU queue, MLflow"]:::planned
-    gate["Promotion gate<br/>frozen test set, gold set"]:::planned
+    train["Training<br/>jobs, GPU queue, MLflow"]:::built
+    gate["Promotion gate<br/>frozen test set"]:::built
     serve["Serving<br/>Triton, vLLM, one gateway"]:::planned
     rag["Retrieval<br/>pgvector"]:::planned
     obs["Observability<br/>SLOs, alerts, drills"]:::planned
@@ -29,9 +29,10 @@ Green is built and checked; grey is planned, and each part is published here whe
 - **Who the platform serves:** my team's AI engineers (the AI team), who train the detector, own the prompts, and
   build and run the OCR service that calls the models.
 - **Where it runs:** one Ubuntu machine with two RTX 3060 GPUs, shared with the AI team, on the client's real data.
-- **Built:** the GPU cluster, run by GitOps; the versioned data path; and [the same platform on AWS](#the-aws-track),
+- **Built:** the GPU cluster, run by GitOps; the versioned data path; the training platform, where one command
+  trains the detector, a queue holds the GPU and a gate judges the result; and [the same platform on AWS](#the-aws-track),
   proven without an AWS account.
-- **Next:** training, the gate, serving, retrieval and observability, designed as one platform in
+- **Next:** serving, retrieval and observability, designed as one platform with the rest in
   [the concept design](docs/specs/ml-platform.md) ([the roadmap](#the-roadmap)).
 
 I am a cloud, DevOps and data platform engineer at the same company. I built and run this lab, and every step is
@@ -66,14 +67,14 @@ are in [the design](docs/design.md#outcomes); how each layer of the platform rea
 
 | # | Outcome | Solves | Phase | Status |
 |---|---|---|---|---|
-| T1 | Reproducible detector training: the production weights' mAP@50 on the test split reproduced within 0.02; a rerun within 0.005 | P1 | 2b | Planned |
-| T2 | Gold sets and a scoreboard: a test split frozen by document, a human gold set, one table of every model version's scores, each with its interval | P2 | 2a, 2b | **Half done:** the test split (26 of 132 documents, 341 pages) and the gold set (200 human picks), 2026-11-01 |
+| T1 | Reproducible detector training: the production weights' mAP@50-95 on the test split reproduced within 0.02 (mAP@50 within 0.01); a rerun within 0.005 | P1 | 2b | **Not met as written:** reruns equal to four decimals; the recipe without the test documents scores 0.846 against production's 0.957, because production's own scores on this data are near training scores ([why](#phase-2b-the-training-platform)), 2026-11-15 |
+| T2 | Gold sets and a scoreboard: a test split frozen by document, a human gold set, one table of every model version's scores, each with its interval | P2 | 2a, 2b | **Done for the detector:** the test split (26 of 132 documents, 341 pages) and the gold set (200 human picks), 2026-11-01; the scoreboard of every detector version with its intervals, 2026-11-15. The VLM's rows come with 3a |
 | T3 | Fewer GPT calls: a self-hosted vision-language model behind the gateway answers a share of the elements at equal top-1 on the gold set | P5 | 3a | Planned |
 | T4 | Versioned datasets from a CDC path: a replayed edit in the lakehouse within 60 s with no polling; a gate report rebuilt from the gold set's version | P4 | 2a, 3a | **Half done:** the slowest of 10 edits in 31.7 s, nothing polling (2026-11-01) |
 | T5 | GPU serving with measured trade-offs: accuracy, latency and throughput per precision (FP32, FP16, INT8), against today's CPU; against FP32, at most 0.005 of mAP@50 and recall lost at FP16, 0.02 at INT8 | P6 | 3a | Planned |
 | T6 | Serving and GPU observability: SLOs for serving and training, each alert proven by a drill | P9 | 3c | Planned |
-| T7 | One gate and full lineage: a deliberately worse model and a worse prompt both blocked; every output names its weights, prompt and deployment | P3 | 2b, 3a | Planned |
-| T8 | Self-service training and serving: one command per task for an AI engineer; a second GPU job waits in its queue within its quota | P7 | 2b, 3a | Planned |
+| T7 | One gate and full lineage: a deliberately worse model and a worse prompt both blocked; every output names its weights, prompt and deployment | P3 | 2b, 3a | **Half done:** a deliberately worse detector blocked by the gate (0.787 against 0.957); every version names its run, dataset id, commit and image digest, 2026-11-15. A worse prompt comes with 3a |
+| T8 | Self-service training and serving: one command per task for an AI engineer; a second GPU job waits in its queue within its quota | P7 | 2b, 3a | **Half done:** training is one `argo submit` from a restricted identity; a second job waits in the queue, 2026-11-15. Serving comes with 3a |
 | T9 | Past picks reused by retrieval: the nearest human-picked crops as context, measured by recall@k, latency and the effect on top-1 | P8 | 3b | Planned |
 
 ## For a reviewer: each skill and where it is proven
@@ -88,13 +89,14 @@ Five minutes, one row per skill; every row links its proof, most of them a comma
 | Kubernetes platform by GitOps (Argo CD, Helm, Gateway API, cert-manager, secrets, policy) | [The overlays](infra/argocd/clusters/), [the platform on kind](docs/runbooks/aws-track.md#3-kind-with-the-platform), [the EKS render](docs/runbooks/aws-track.md#8-the-eks-overlay-and-ci-c5) | 9 Applications healthy; HTTPS with the lab CA; a secret change in 14 s; EKS overlay 0 invalid |
 | Autoscaling: HPA, KEDA, Karpenter with spot | [HPA](docs/runbooks/aws-track.md#41-hpa-under-load-c10), [KEDA](docs/runbooks/aws-track.md#42-keda-on-an-sqs-queue-c11), [Karpenter](docs/runbooks/aws-track.md#43-karpenter-on-kwok-spot-first-a-reclaim-consolidation-c12) | 1 to 5 pods in 40 s (decided at 33 s) at 899 req/s, p95 106 ms, 0 failed of 211,658; 0 to 5 workers in 31 s; a spot reclaim with 11 of 12 ready |
 | Cost: pricing models and the bill | [The estimate](docs/aws-cost-estimate.md) | 958, 654 and 576 USD a month: on-demand, spot, spot plus commitments |
+| An ML training platform on shared GPUs (Argo Workflows, Kueue, MLflow) | [The training platform spec](docs/specs/training-platform.md), [its acceptance](docs/runbooks/training-platform.md#verify-end-to-end), [the gate](docs/notes/promotion-gate.md) | One `argo submit`; a second job held by Kueue until the first ended; a 5-epoch model blocked at 0.787 against 0.957; a rerun equal to four decimals; the lab off the AI team's GPU |
 | Databases: restore, failover, major upgrade | [PITR](docs/runbooks/aws-track.md#51-point-in-time-restore-c15), [failover](docs/runbooks/aws-track.md#52-failover-c14), [PG 16 to 17](docs/runbooks/aws-track.md#53-major-upgrade-by-logical-replication-c13) | RTO 79 s (restored to 3 s before a DELETE), RPO bounded at 60 s by the WAL archive; 30.5 s failover gap; 9.5 s upgrade cutover with zero data lost (checksums equal) |
 | Git flow and CI | [Workflows, rulesets, CODEOWNERS](.github/), [a pull request](https://github.com/caokgit/ocr-platform/pull/1), [a release](https://github.com/caokgit/ocr-platform/releases/tag/v0.3.0) | CI caught two real faults on the first push; both fixed through PR #1 |
 | Observability and releases | [An alert finds a bad release](docs/runbooks/aws-track.md#61-an-alert-finds-a-bad-release-c16), [canary](docs/runbooks/aws-track.md#62-canary-with-analysis-c17) | Alert in 1 min 58 s, failures traced in Loki; a faulty build aborted in 37 s |
 
 ## Built so far
 
-Two phases on the shared machine, each closed by its acceptance checks. Every number below comes from a run, with its
+Three phases on the shared machine, each closed by its acceptance checks, with what did not pass said so. Every number below comes from a run, with its
 output in the runbooks.
 
 ### Phase 1: GPU Kubernetes beside the AI team's work
@@ -136,7 +138,35 @@ replayed copy, `live`.
 | Change capture | Debezium's lag p99 1.19 s; Spark 4.1.4 writes bronze (every event as it arrived) and silver (the current state of each row); silver equals the copy for all 28 table and environment pairs |
 | **T4, first half** | 10 replayed saves reached silver within 31.7 s of their commit (the limit is 60 s); nothing polls: only the replayer's writes and Debezium's heartbeat touched `live` |
 | No duplicates, through failures | 0 duplicates in bronze's 245,234 events (the writes plus 13 from the T4 checks) through five stream failures; `lab-down` then `lab-up` changed no count |
-| **T2, its two datasets** | The human gold set: 200 picks joined to the model output they were cut from (50 excluded: their page image is gone), read twice the same; from 27 curated results, 15 last saved by my team and 12 by the client's staff, so it can be cut to the client's own work. The detector's test split: 26 of the 132 documents in the AI team's labelled set of 2,040 page images (341 pages in the split), none on both sides, its list's sha256 recorded |
+| **T2, its two datasets** | The human gold set: 200 picks joined to the model output they were cut from (50 excluded: their page image is gone), read twice the same; from 27 curated results, 15 last saved by my team and 12 by the client's staff, so it can be cut to the client's own work. The detector's test split: 26 of the 132 documents in the AI team's 2,041 labelled pages (2,040 copied) (341 pages in the split), none on both sides, its list's sha256 recorded |
+
+### Phase 2b: the training platform
+
+**An AI engineer retrains the detector with one command: the job waits for its GPU in a queue, records every id it
+used, and faces a promotion gate written before any run; only a person moves the model in use** (acceptance E1 to E14,
+[the table](docs/runbooks/training-platform.md#verify-end-to-end): 12 passed; T1 as written not met, and promotion shown
+only as refusals, since no promotable version passed the gate).
+
+```mermaid
+flowchart LR
+  ae(["AI engineer<br/>argo submit"]) --> q["Kueue<br/>1 GPU"]
+  q -->|"admitted"| tr["train on GPU 1<br/>GPU 0 kept for the AI team"]
+  tr -->|"run, version N"| ml[("MLflow<br/>registry")]
+  tr --> gt["gate on CPU<br/>against @champion"]
+  gt -->|"passed or failed"| ml
+  p(["a person<br/>promote.py"]) -->|"only if passed"| ml
+```
+
+| Result | Measured |
+|---|---|
+| One command, a restricted identity | One `argo submit` with a dataset id and a recipe name; that identity cannot create a pod or read a Secret |
+| A queue for the GPU | A second job waited, gated by Kueue with no node, until the first ended; GPU 0 reserved for the AI team by a placeholder pod, so the lab trains on GPU 1 only |
+| Lineage | Every model version names its run, and the run its dataset id, commit, image digest, base weights, split lists and GPU |
+| **T7, a worse model blocked** | The gate scores each version against `@champion` on the frozen test split, with a bootstrap over its 26 documents and a margin measured before any run ([the design note](docs/notes/promotion-gate.md)): a 5-epoch model at 0.787 against 0.957 on mAP@50-95 failed, and the promote command refused it |
+| **T2, the scoreboard** | One MLflow experiment with every version's test-split scores and intervals |
+| **T1, reproducible, not yet to production's score** | A rerun equal to the first run to four decimals. The production recipe without the 26 test documents scored 0.846 against production's 0.957. Trained on production's own split, it reached 0.955, but only 0.726 on the 7 documents it never saw, where production scores 0.970: production's scores on this data are close to training scores, so which data trained it is now the open question (P1, measured) |
+| The shared machine protected | Each training checks its card's free memory and refuses below the floor; the AI team's Docker unchanged; the lab 6.8 GiB of RAM idle, 13.2 GiB while training; `lab-down` mid-training in 39 s, the run marked `KILLED` |
+
 
 ## The architecture
 
@@ -148,6 +178,7 @@ flowchart LR
   subgraph laptop["Laptop"]
     ans["Ansible"]
     launch["Launchers<br/>replay, Spark jobs"]
+    ae["argo submit, promote.py<br/>as the AI engineer"]
     sec["Secrets<br/>never in Git"]
   end
   gh["GitHub<br/>the lab's repo"]
@@ -155,18 +186,20 @@ flowchart LR
     docker["The AI team's Docker<br/>untouched"]
     subgraph k3s["k3s, only during a session"]
       argo["Argo CD"]
-      svc["GPU Operator,<br/>the data path"]
+      svc["GPU Operator<br/>the data path<br/>Argo Workflows, Kueue, MLflow"]
       runs["On-demand runs"]
+      jobs["Training jobs<br/>GPU 1; GPU 0 reserved"]
     end
   end
   ans -->|"ssh: install,<br/>lab-up, lab-down"| k3s
   gh -->|"the desired state"| argo -->|"installs"| svc
   launch -->|"ssh tunnel<br/>to the API"| runs
+  ae -->|"ssh tunnel,<br/>a restricted identity"| jobs
   sec -->|"over the tunnel"| k3s
 ```
 
-Each on-demand run is stamped with the commit it came from (checked offline so far). From home, the laptop reaches the
-machine through the office VPN.
+Each on-demand run is stamped with the commit it came from; a training job runs code Argo CD synced from Git, and
+records that commit in MLflow. From home, the laptop reaches the machine through the office VPN.
 
 ## The AWS track
 
@@ -209,9 +242,10 @@ flowchart LR
 |---|---|
 | Infrastructure and GitOps | [Ansible playbooks](infra/ansible/), k3s, [Argo CD applications](infra/argocd/); operators running stateful services (Postgres, Kafka, Debezium, Spark) |
 | Data platform | CDC into a lakehouse with versioned tables ([pipelines](pipelines/)); datasets named by version |
+| Training platform | [One job template](pipelines/detector/), a GPU queue, MLflow's registry, a gate with a measured margin |
 | Safe operation on shared hardware | A memory quota, a free-memory floor before each start, a teardown inventory, the AI team's Docker checked unchanged |
 | Operations discipline | Acceptance checks, [runbooks](docs/runbooks/README.md) with real output, failure modes with their fixes |
-| Engineering judgement | Nine [design notes](docs/notes/README.md), each a question the lab settled with real values |
+| Engineering judgement | Ten [design notes](docs/notes/README.md), each a question the lab settled with real values |
 | AWS in Terraform | [Modules with tests](infra/aws/terraform/modules/), a [LocalStack env](infra/aws/terraform/envs/localstack/) and the [full dev design](infra/aws/terraform/envs/dev/); [the checks](tools/check-terraform.sh) |
 | One platform, several clusters | [ApplicationSets and overlays](infra/argocd/clusters/), [values per cluster](infra/platform/values/), [cluster-wide objects](infra/platform/manifests/) |
 | Operations drills | [Autoscaling, databases, alerts, canary](infra/drills/), each with its output in [the runbook](docs/runbooks/aws-track.md) |
@@ -228,7 +262,7 @@ internal addresses masked, and the AI team's firewall rules elided; everything e
 
 ## The roadmap
 
-Phases 1 and 2a and the AWS track are built, with the evidence above. The design of the whole platform is published
+Phases 1, 2a and 2b and the AWS track are built, with the evidence above. The design of the whole platform is published
 before the rest is built: [the concept design](docs/specs/ml-platform.md) shows its users and their interfaces, every
 layer marked built or planned, [the lineage chain](docs/specs/ml-platform.md#the-lineage-chain) from a dataset version
 to each response, and [the plan](docs/specs/ml-platform.md#the-box-plan) for sharing two 12 GB GPUs with the AI team.
@@ -236,27 +270,29 @@ Each phase below is then built on the shared machine and published here when its
 
 | Phase | Builds | Outcomes |
 |---|---|---|
-| 2b, the training platform | One job template an AI engineer submits with a dataset version and a recipe; GPU queueing and quotas on the two GPUs; namespaces with RBAC and NetworkPolicy; MLflow tracking and registry; the detector's production recipe reproduced; one promotion gate on the frozen test split; lineage from the dataset version to the weights. The orchestrator, Argo Workflows or Airflow, is chosen in its spec | T1, T2's scoreboard, T7, T8 |
 | 3a, model serving | The detector on NVIDIA Triton: ONNX, then TensorRT FP32, FP16 and INT8, against today's CPU. A small open vision-language model on vLLM, on one RTX 3060. One OpenAI-compatible gateway in front of the GPT deployments and vLLM: models switched by configuration, usage and cost per key, the answering model recorded | T3, T4's second half (a gate report rebuilt from the gold set's version), T5, T7, T8 |
 | 3b, retrieval | Crop and element embeddings in pgvector on the lab's existing Postgres; the nearest human-picked crops retrieved as context for the model (RAG on the OCR's own data) | T9 |
 | 3c, observability and day 2 | GPU metrics (DCGM), Triton and vLLM metrics, the platform's SLOs, GPU use per namespace; drills of a bad model, a full GPU and a stuck queue; an upgrade drill (k3s, the GPU Operator, a Helm rollback) | T6 |
 
-Extended work, not scheduled: KEDA scaling on Kafka; a student ranker distilled from GPT's scores, grown by active learning; the AWS
+T1 as written needs to know which data trained production: the AI team's record of its split, or pages labelled after
+the copy as a test set production never saw. Extended work, not scheduled: KEDA scaling on Kafka; a student ranker distilled from GPT's scores, grown by active learning; the AWS
 track applied to a real account (`envs/dev` with its S3 state bucket, then the eks overlay).
 
 ## Where to read next
 
 1. [The use case](docs/use-case.md): the workload, one document through it, and its gaps.
 2. [How I work](docs/how-i-work.md): the method, and three errors it caught.
-3. [The design notes](docs/notes/README.md): nine engineering questions the lab settled, each with its real values.
+3. [The design notes](docs/notes/README.md): ten engineering questions the lab settled, each with its real values.
 4. [The design](docs/design.md): each outcome's metric, baseline and target, then each decision with its why;
    [the concept design](docs/specs/ml-platform.md) of the whole platform; and the specs,
-   [phase 1's platform](docs/specs/gpu-box-platform.md) and [phase 2a's data path](docs/specs/data-path.md),
+   [phase 1's platform](docs/specs/gpu-box-platform.md), [phase 2a's data path](docs/specs/data-path.md) and
+   [phase 2b's training platform](docs/specs/training-platform.md),
    with their acceptance checks as worded and as run.
 5. [The runbooks](docs/runbooks/README.md): the whole journey, from a fresh laptop to a running lab and back to a
    clean machine, each command with its real output.
-6. The phase reviews, [phase 1](docs/phases/phase-1-gpu-box.md) and [phase 2a](docs/phases/phase-2a-data-path.md):
-   each phase's story in one read, and its acceptance tables:
-   [phase 1](docs/runbooks/gpu-box-bootstrap.md#8-acceptance), [phase 2a](docs/runbooks/data-path.md#verify-end-to-end).
+6. The phase reviews, [phase 1](docs/phases/phase-1-gpu-box.md), [phase 2a](docs/phases/phase-2a-data-path.md) and
+   [phase 2b](docs/phases/phase-2b-training-platform.md): each phase's story in one read, and its acceptance tables:
+   [phase 1](docs/runbooks/gpu-box-bootstrap.md#8-acceptance), [phase 2a](docs/runbooks/data-path.md#verify-end-to-end),
+   [phase 2b](docs/runbooks/training-platform.md#verify-end-to-end).
 7. The AWS track: [its spec](docs/specs/aws-track.md), [its review](docs/phases/aws-track.md), [its runbook](docs/runbooks/aws-track.md), [the cost estimate](docs/aws-cost-estimate.md).
 8. [AGENTS.md](AGENTS.md): the rules the work follows.

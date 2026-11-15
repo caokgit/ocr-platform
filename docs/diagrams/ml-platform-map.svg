@@ -57,38 +57,38 @@
     <text x="36" y="504" fill="#134e4a">edit in silver in 31.7 s</text>
   </g>
 
-  <!-- 2 Training: planned 2b -->
+  <!-- 2 Training: built 2b -->
   <g>
-    <rect x="265" y="152" width="228" height="398" rx="8" fill="#fff7ed" stroke="#ea580c" stroke-width="2" stroke-dasharray="6 3"/>
+    <rect x="265" y="152" width="228" height="398" rx="8" fill="#fff7ed" stroke="#ea580c" stroke-width="2"/>
     <text x="277" y="176" font-size="15" font-weight="bold" fill="#7c2d12">2. Training</text>
-    <text x="277" y="194" fill="#7c2d12">Planned, phase 2b</text>
-    <rect x="277" y="206" width="204" height="42" rx="5" fill="#ffedd5" stroke="#ea580c" stroke-dasharray="4 3"/>
-    <text x="285" y="224">One job template:</text><text x="285" y="240">Argo Workflows or Airflow</text>
-    <rect x="277" y="256" width="204" height="42" rx="5" fill="#ffedd5" stroke="#ea580c" stroke-dasharray="4 3"/>
-    <text x="285" y="274">A queue for the GPUs:</text><text x="285" y="290">Kueue or plain quotas</text>
-    <rect x="277" y="306" width="204" height="58" rx="5" fill="#ffedd5" stroke="#ea580c" stroke-dasharray="4 3"/>
-    <text x="285" y="324">A GPU pod: YOLO training</text><text x="285" y="340">on 1 x RTX 3060, from</text><text x="285" y="356">a dataset version</text>
+    <text x="277" y="194" fill="#7c2d12">Built, phase 2b</text>
+    <rect x="277" y="206" width="204" height="42" rx="5" fill="#ffedd5" stroke="#ea580c"/>
+    <text x="285" y="224">One job template:</text><text x="285" y="240">Argo Workflows</text>
+    <rect x="277" y="256" width="204" height="42" rx="5" fill="#ffedd5" stroke="#ea580c"/>
+    <text x="285" y="274">A queue for the GPUs:</text><text x="285" y="290">Kueue, one GPU job at a time</text>
+    <rect x="277" y="306" width="204" height="58" rx="5" fill="#ffedd5" stroke="#ea580c"/>
+    <text x="285" y="324">A GPU pod: YOLO training</text><text x="285" y="340">on GPU 1 (GPU 0 kept for</text><text x="285" y="356">the AI team), by dataset id</text>
     <text x="277" y="440" font-style="italic" fill="#7c2d12">Can an AI engineer retrain</text>
     <text x="277" y="456" font-style="italic" fill="#7c2d12">with one command?</text>
     <text x="277" y="486" fill="#7c2d12">P1, P7 → T1, T8</text>
-    <text x="277" y="504" fill="#7c2d12">today: by hand in a cloud UI</text>
+    <text x="277" y="504" fill="#7c2d12">one argo submit; a 2nd job waits</text>
   </g>
 
-  <!-- 3 Registry and gate: planned 2b -->
+  <!-- 3 Registry and gate: built 2b -->
   <g>
-    <rect x="506" y="152" width="228" height="398" rx="8" fill="#faf5ff" stroke="#9333ea" stroke-width="2" stroke-dasharray="6 3"/>
+    <rect x="506" y="152" width="228" height="398" rx="8" fill="#faf5ff" stroke="#9333ea" stroke-width="2"/>
     <text x="518" y="176" font-size="15" font-weight="bold" fill="#581c87">3. Registry and gate</text>
-    <text x="518" y="194" fill="#581c87">Planned, phase 2b</text>
-    <rect x="518" y="206" width="204" height="42" rx="5" fill="#f3e8ff" stroke="#9333ea" stroke-dasharray="4 3"/>
+    <text x="518" y="194" fill="#581c87">Built, phase 2b</text>
+    <rect x="518" y="206" width="204" height="42" rx="5" fill="#f3e8ff" stroke="#9333ea"/>
     <text x="526" y="224">MLflow tracking: params,</text><text x="526" y="240">metrics, snapshot id</text>
-    <rect x="518" y="256" width="204" height="42" rx="5" fill="#f3e8ff" stroke="#9333ea" stroke-dasharray="4 3"/>
+    <rect x="518" y="256" width="204" height="42" rx="5" fill="#f3e8ff" stroke="#9333ea"/>
     <text x="526" y="274">MLflow registry: versions,</text><text x="526" y="290">@champion: the one in use</text>
-    <rect x="518" y="306" width="204" height="58" rx="5" fill="#f3e8ff" stroke="#9333ea" stroke-dasharray="4 3"/>
-    <text x="526" y="324">The gate: mAP@50, recall</text><text x="526" y="340">on the frozen split; top-1</text><text x="526" y="356">on the human gold set</text>
+    <rect x="518" y="306" width="204" height="58" rx="5" fill="#f3e8ff" stroke="#9333ea"/>
+    <text x="526" y="324">The gate: mAP@50-95, recall,</text><text x="526" y="340">not worse by 0.02; top-1 on</text><text x="526" y="356">the gold set with 3a</text>
     <text x="518" y="440" font-style="italic" fill="#581c87">Is the new model better,</text>
     <text x="518" y="456" font-style="italic" fill="#581c87">and what made it?</text>
     <text x="518" y="486" fill="#581c87">P2, P3 → T2, T7</text>
-    <text x="518" y="504" fill="#581c87">today: weights named by file</text>
+    <text x="518" y="504" fill="#581c87">a worse model blocked</text>
   </g>
 
   <!-- 4 Serving: planned 3a -->
@@ -158,7 +158,7 @@
   <!-- lineage strip -->
   <g>
     <rect x="24" y="566" width="1452" height="56" rx="8" fill="#f8fafc" stroke="#334155" stroke-dasharray="6 3"/>
-    <text x="36" y="588" font-weight="bold" fill="#0f172a">The lineage chain, the contract between the layers (T7, planned 2b and 3a; its first id is real):</text>
+    <text x="36" y="588" font-weight="bold" fill="#0f172a">The lineage chain, the contract between the layers (T7: built in 2b up to the gate report; deployment and responses in 3a):</text>
     <text x="36" y="610" fill="#0f172a">dataset version (a copy id or an Iceberg snapshot id)  →  training run (commit, image digest, parameters)  →  registry version (weights hash)  →  gate report  →  deployment  →  every response tagged with what made it</text>
   </g>
 
@@ -187,5 +187,5 @@
     <text x="1000" y="794">teardown</text>
   </g>
 
-  <text x="24" y="842" font-size="11" fill="#475569">Numbers from the lab: gold sets and the 31.7 s edit (2026-11-01), the machine (2026-10-25, 2026-10-30, 2026-11-11). Everything dashed is PLANNED and is settled in the concept design and its phase spec.</text>
+  <text x="24" y="842" font-size="11" fill="#475569">Numbers from the lab: gold sets and the 31.7 s edit (2026-11-01), the training platform (2026-11-15), the machine (2026-10-25, 2026-10-30, 2026-11-11). Everything dashed is PLANNED and is settled in the concept design and its phase spec.</text>
 </svg>

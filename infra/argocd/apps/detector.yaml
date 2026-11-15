@@ -1,0 +1,30 @@
+# The detector chart (pipelines/detector/): the AI team's training templates and their code, rendered from GitHub
+# with the synced commit passed in as a Helm parameter, the only place Argo CD substitutes its build variables
+# (docs/specs/training-platform.md#decisions, row 6).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: detector
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: git@github.com:caokgit/ocr-platform.git
+    targetRevision: main
+    path: pipelines/detector
+    helm:
+      parameters:
+        - {name: gitCommit, value: $ARGOCD_APP_REVISION}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ai-team
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - SkipDryRunOnMissingResource=true
+      - ServerSideApply=true
+    retry:
+      limit: 10
+      backoff: {duration: 15s, factor: 2, maxDuration: 3m}

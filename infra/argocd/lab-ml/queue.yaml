@@ -1,0 +1,30 @@
+# One GPU job at a time for the lab (the box plan): one flavour, one ClusterQueue with a quota of 1 GPU, one
+# LocalQueue in ai-team (docs/specs/training-platform.md#decisions, row 4). Every resource a queued pod asks for
+# must be covered, so CPU and memory are counted too.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: rtx-3060
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: lab-gpu
+spec:
+  namespaceSelector: {}
+  resourceGroups:
+    - coveredResources: [cpu, memory, nvidia.com/gpu]
+      flavors:
+        - name: rtx-3060
+          resources:
+            - {name: cpu, nominalQuota: "4"}
+            - {name: memory, nominalQuota: 8Gi}
+            - {name: nvidia.com/gpu, nominalQuota: 1}
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: ai-team
+  namespace: ai-team
+spec:
+  clusterQueue: lab-gpu
